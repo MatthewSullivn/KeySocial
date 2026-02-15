@@ -33,6 +33,7 @@ export interface GameConfig {
   trackLength: number; // total words needed to win
   countdownSeconds: number;
   difficulty: "easy" | "medium" | "hard" | "insane";
+  aiTargetWPM: number; // target WPM for the AI opponent
 }
 
 export interface MatchResult {
@@ -70,20 +71,24 @@ export const DIFFICULTY_CONFIGS: Record<string, GameConfig> = {
     trackLength: 20,
     countdownSeconds: 3,
     difficulty: "easy",
+    aiTargetWPM: 30,
   },
   medium: {
     trackLength: 25,
     countdownSeconds: 3,
     difficulty: "medium",
+    aiTargetWPM: 60,
   },
   hard: {
     trackLength: 30,
     countdownSeconds: 3,
     difficulty: "hard",
+    aiTargetWPM: 100,
   },
   insane: {
     trackLength: 35,
     countdownSeconds: 3,
+    aiTargetWPM: 130,
     difficulty: "insane",
   },
 };
@@ -225,27 +230,28 @@ export function processKeyPress(
   return { player: updatedPlayer, correct: isCorrect, wordCompleted: false };
 }
 
-// AI Opponent logic
+// AI Opponent logic — calibrated to hit target WPM
 export function generateAIAction(
-  difficulty: string,
-  elapsedMs: number
+  targetWPM: number,
+  _elapsedMs: number
 ): { correct: boolean; delay: number } {
-  // AI reaction time and accuracy based on difficulty
-  const configs: Record<string, { baseDelay: number; accuracy: number; variance: number }> = {
-    easy: { baseDelay: 800, accuracy: 0.85, variance: 300 },
-    medium: { baseDelay: 500, accuracy: 0.9, variance: 200 },
-    hard: { baseDelay: 300, accuracy: 0.93, variance: 150 },
-    insane: { baseDelay: 200, accuracy: 0.96, variance: 100 },
-  };
+  // Each AI action types ~1 word (avg 5 chars + 1 space = 6 chars).
+  // WPM = (totalChars / 5) / minutes, so delay per word = 72000 / targetWPM (ms).
+  const avgCharsPerWord = 6;
+  const baseDelay = (avgCharsPerWord / (targetWPM / 60)) * 1000 / avgCharsPerWord;
+  // Simplified: delay (ms) = 60000 / targetWPM per character, times chars per word
+  // = (avgCharsPerWord * 60000) / (targetWPM * 5)
+  const wordDelay = (avgCharsPerWord * 60000) / (targetWPM * 5);
 
-  const config = configs[difficulty] || configs.medium;
+  // Add ±15% natural variance so the bot doesn't feel robotic
+  const variance = wordDelay * 0.15;
+  const delay = wordDelay + (Math.random() - 0.5) * 2 * variance;
 
-  // AI gets slightly faster as the race progresses (adrenaline)
-  const speedBoost = Math.min(elapsedMs / 60000, 0.2); // up to 20% faster
-  const delay = config.baseDelay * (1 - speedBoost) + (Math.random() - 0.5) * config.variance;
-  const correct = Math.random() < config.accuracy;
+  // High accuracy for all bots (they mostly type correctly)
+  const accuracy = targetWPM >= 100 ? 0.97 : targetWPM >= 60 ? 0.95 : 0.93;
+  const correct = Math.random() < accuracy;
 
-  return { correct, delay: Math.max(100, delay) };
+  return { correct, delay: Math.max(200, delay) };
 }
 
 // Calculate final match result

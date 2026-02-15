@@ -129,10 +129,10 @@ export default function MatchLobbyPage() {
               </div>
 
               <Link
-                href="/game"
+                href="/game?mode=create"
                 className="w-full py-4 bg-primary hover:bg-[#B8D43B] text-black font-extrabold text-lg rounded-xl shadow-lg hover:shadow-[0_0_15px_rgba(212,232,98,0.5)] transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center space-x-2"
               >
-                <span>Confirm Stake</span>
+                <span>Confirm Stake &amp; Create Room</span>
                 <span className="material-icons-outlined text-xl">arrow_forward</span>
               </Link>
               <p className="mt-4 text-xs text-muted-light dark:text-muted-dark">

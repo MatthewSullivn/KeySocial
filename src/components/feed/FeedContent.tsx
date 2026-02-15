@@ -1,21 +1,12 @@
 "use client";
 
 import type { TapestryProfile } from "@/lib/tapestry";
+import type { LocalPost } from "./FeedView";
 import {
   FeedCardPost,
   FeedCardBotChallenge,
   BOT_CHALLENGES,
 } from "./FeedCards";
-
-interface LocalPost {
-  id: string;
-  author: string;
-  handle: string;
-  content: string;
-  createdAt: string;
-  likes: number;
-  comments: number;
-}
 
 function formatTimeAgo(dateStr: string): string {
   const d = new Date(dateStr);
@@ -48,6 +39,8 @@ export function FeedContent({ localPosts, onDeletePost }: FeedContentProps) {
           likes={post.likes}
           comments={post.comments}
           onDelete={onDeletePost ? () => onDeletePost(post.id) : undefined}
+          postType={post.postType}
+          meta={post.meta}
         />
       ))}
 

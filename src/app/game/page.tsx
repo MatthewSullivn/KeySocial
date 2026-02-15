@@ -9,6 +9,14 @@ import KeyDisplay from "@/components/game/KeyDisplay";
 import CountdownOverlay from "@/components/game/CountdownOverlay";
 import GameResults from "@/components/game/GameResults";
 import { recordMatchResult } from "@/lib/tapestry";
+import { generateAIAction } from "@/lib/game-engine";
+import {
+  broadcastProgress,
+  broadcastFinished,
+  cleanupChannel,
+  type ProgressPayload,
+} from "@/lib/multiplayer";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import AppHeader from "@/components/layout/AppHeader";
 
@@ -23,6 +31,9 @@ export default function GamePage() {
 function GamePageInner() {
   const searchParams = useSearchParams();
   const initialDifficulty = searchParams.get("difficulty") || undefined;
+  const initialMode = searchParams.get("mode") || undefined;
+  const initialRoomCode = searchParams.get("room") || undefined;
+
   const {
     gameState,
     config,
@@ -36,9 +47,11 @@ function GamePageInner() {
     wordHistory,
     stakeAmount,
     matchResult,
+    matchMode,
     startCountdown,
     handleKeyPress,
     updateOpponent,
+    updateRemoteOpponent,
     tick,
     resetGame,
   } = useGameStore();
@@ -50,6 +63,8 @@ function GamePageInner() {
   const opponentIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resultFeedbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const broadcastThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mpChannelRef = useRef<RealtimeChannel | null>(null);
 
   // Handle keyboard input
   const onKeyDown = useCallback(
@@ -60,7 +75,6 @@ function GamePageInner() {
 
       e.preventDefault();
 
-      // Backspace — just send it, no correct/wrong feedback
       if (e.key === "Backspace") {
         handleKeyPress("Backspace");
         return;
@@ -73,7 +87,6 @@ function GamePageInner() {
       const correct = newCorrectHits > prevCorrectHits;
       setLastResult(correct ? "correct" : "wrong");
 
-      // Clear previous feedback timeout
       if (resultFeedbackRef.current) clearTimeout(resultFeedbackRef.current);
       resultFeedbackRef.current = setTimeout(() => setLastResult(null), 200);
     },
@@ -98,17 +111,20 @@ function GamePageInner() {
     };
   }, [gameState, tick]);
 
-  // AI opponent moves
+  // AI opponent moves (bot mode only)
   useEffect(() => {
+    if (matchMode !== "bot") return;
     if (gameState === "racing") {
       const scheduleAIMove = () => {
-        const delay = 300 + Math.random() * 700; // 300-1000ms between AI moves
+        const store = useGameStore.getState();
+        const elapsedMs = store.startTime ? Date.now() - store.startTime : 0;
+        const action = generateAIAction(store.config.aiTargetWPM, elapsedMs);
         opponentIntervalRef.current = setTimeout(() => {
           updateOpponent();
           if (useGameStore.getState().gameState === "racing") {
             scheduleAIMove();
           }
-        }, delay);
+        }, action.delay);
       };
       scheduleAIMove();
     }
@@ -116,20 +132,71 @@ function GamePageInner() {
     return () => {
       if (opponentIntervalRef.current) clearTimeout(opponentIntervalRef.current);
     };
-  }, [gameState, updateOpponent]);
+  }, [gameState, updateOpponent, matchMode]);
 
-  // Record match result on chain + save best WPM
+  // Multiplayer: broadcast player progress (throttled ~100ms)
+  useEffect(() => {
+    if (matchMode !== "multiplayer" || gameState !== "racing") return;
+    if (!mpChannelRef.current) return;
+
+    if (broadcastThrottleRef.current) clearTimeout(broadcastThrottleRef.current);
+    broadcastThrottleRef.current = setTimeout(() => {
+      const store = useGameStore.getState();
+      const p = store.player;
+      const channel = mpChannelRef.current;
+      if (!channel) return;
+
+      const payload: ProgressPayload = {
+        playerId: p.id,
+        username: p.username,
+        progress: p.progress,
+        wpm: p.wpm,
+        accuracy: p.accuracy,
+        correctHits: p.correctHits,
+        totalHits: p.totalHits,
+        streak: p.streak,
+        isFinished: p.isFinished,
+      };
+      broadcastProgress(channel, payload);
+
+      if (p.isFinished) {
+        broadcastFinished(channel, p.id);
+      }
+    }, 100);
+
+    return () => {
+      if (broadcastThrottleRef.current) clearTimeout(broadcastThrottleRef.current);
+    };
+  }, [gameState, matchMode, player.correctHits, player.streak, player.isFinished, player.progress]);
+
+  // Record match result on chain + save best WPM + save to localStorage
   useEffect(() => {
     if (gameState === "finished" && matchResult && profile) {
       recordMatchOnChain();
     }
-    if (gameState === "finished" && player.wpm > 0) {
+    if (gameState === "finished" && matchResult && player.wpm > 0) {
       try {
         const prev = parseInt(localStorage.getItem("ks_best_wpm") || "0", 10);
         if (player.wpm > prev) {
           localStorage.setItem("ks_best_wpm", String(player.wpm));
         }
       } catch {}
+
+      try {
+        const raw = localStorage.getItem("ks_match_history");
+        const history: Array<typeof matchResult & { timestamp: string }> = raw ? JSON.parse(raw) : [];
+        history.unshift({ ...matchResult, timestamp: new Date().toISOString() });
+        if (history.length > 100) history.length = 100;
+        localStorage.setItem("ks_match_history", JSON.stringify(history));
+      } catch {}
+    }
+
+    // Cleanup multiplayer channel on game finish
+    if (gameState === "finished" && matchMode === "multiplayer") {
+      setTimeout(() => {
+        cleanupChannel();
+        mpChannelRef.current = null;
+      }, 2000);
     }
   }, [gameState, matchResult]);
 
@@ -144,7 +211,6 @@ function GamePageInner() {
       toast.success("Match result recorded onchain!");
     } catch (err) {
       console.error("Failed to record match:", err);
-      // Non-blocking - don't worry if this fails
     }
   }
 
@@ -153,7 +219,37 @@ function GamePageInner() {
     startCountdown();
   }
 
+  function handleMultiplayerStart(channel: RealtimeChannel) {
+    mpChannelRef.current = channel;
+
+    // Re-subscribe to events for the game phase
+    channel.on("broadcast", { event: "room_event" }, ({ payload }) => {
+      const evt = payload as { type: string; payload: ProgressPayload | { playerId: string } };
+      if (evt.type === "progress") {
+        updateRemoteOpponent(evt.payload as ProgressPayload);
+      }
+      if (evt.type === "player_finished") {
+        const store = useGameStore.getState();
+        if (store.gameState === "racing") {
+          store.endGame();
+        }
+      }
+      if (evt.type === "player_left") {
+        toast.success("Opponent disconnected — you win!");
+        const store = useGameStore.getState();
+        if (store.gameState === "racing") {
+          store.endGame();
+        }
+      }
+    });
+
+    setShowSetup(false);
+    startCountdown();
+  }
+
   function handlePlayAgain() {
+    cleanupChannel();
+    mpChannelRef.current = null;
     resetGame();
     setShowSetup(true);
     setLastResult(null);
@@ -161,9 +257,10 @@ function GamePageInner() {
 
   function handleShare() {
     if (!matchResult) return;
+    const modeLabel = matchMode === "multiplayer" ? "multiplayer" : "bot";
     const text = `I just ${
       matchResult.winnerId === player.id ? "won" : "lost"
-    } a KeySocial race! WPM: ${player.wpm} | Accuracy: ${player.accuracy}% 🏎️⚡ #KeySocial #Solana`;
+    } a KeySocial ${modeLabel} race! WPM: ${player.wpm} | Accuracy: ${player.accuracy}% 🏎️⚡ #KeySocial #Solana`;
 
     if (navigator.share) {
       navigator.share({ title: "KeySocial Race Result", text });
@@ -183,7 +280,13 @@ function GamePageInner() {
         </div>
         <AppHeader />
         <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-4">
-          <GameSetup onStart={handleStartFromSetup} initialDifficulty={initialDifficulty} />
+          <GameSetup
+            onStart={handleStartFromSetup}
+            onMultiplayerStart={handleMultiplayerStart}
+            initialDifficulty={initialDifficulty}
+            initialMode={initialMode}
+            initialRoomCode={initialRoomCode}
+          />
         </main>
       </div>
     );
@@ -211,6 +314,8 @@ function GamePageInner() {
   }
 
   // Active game screen
+  const isMultiplayer = matchMode === "multiplayer";
+
   return (
     <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex flex-col transition-colors duration-300">
       <CountdownOverlay count={countdown} show={gameState === "countdown"} />
@@ -225,10 +330,14 @@ function GamePageInner() {
         <div className="w-full max-w-5xl mb-8 space-y-4">
           <div className="flex justify-between items-end mb-2">
             <h1 className="text-2xl md:text-3xl font-bold">
-              Heat #{String(startTime || Date.now()).slice(-4)}{" "}
-              <span className="text-gray-400 dark:text-gray-500 text-lg font-normal ml-2">
-                Standard • {config.trackLength} Words
-              </span>
+              {isMultiplayer ? (
+                <>1v1 Race <span className="text-accent-blue text-lg font-normal ml-2">Multiplayer</span></>
+              ) : (
+                <>Heat #{String(startTime || Date.now()).slice(-4)}{" "}
+                <span className="text-gray-400 dark:text-gray-500 text-lg font-normal ml-2">
+                  Standard • {config.trackLength} Words
+                </span></>
+              )}
             </h1>
             <div className="flex items-center gap-2 text-sm font-bold text-secondary">
               <span className="material-icons text-base">timer</span>
@@ -240,7 +349,7 @@ function GamePageInner() {
             <ProgressRow
               label={`@${opponent.username || "opponent"}`}
               percent={Math.round(opponent.progress)}
-              colorClass="from-purple-500 to-indigo-600"
+              colorClass={isMultiplayer ? "from-blue-500 to-indigo-600" : "from-purple-500 to-indigo-600"}
               badge="2nd"
             />
             <ProgressRow
@@ -255,7 +364,11 @@ function GamePageInner() {
               <div className="flex items-center gap-2">
                 <span className="material-icons text-base text-primary">bolt</span>
                 <span>
-                  Stake: <span className="font-mono">{stakeAmount ? `${stakeAmount} SOL` : "Practice"}</span>
+                  {isMultiplayer ? (
+                    <>Mode: <span className="font-mono">1v1 Multiplayer</span></>
+                  ) : (
+                    <>Stake: <span className="font-mono">{stakeAmount ? `${stakeAmount} SOL` : "Practice"}</span></>
+                  )}
                 </span>
               </div>
               <div className="font-mono">

@@ -12,6 +12,7 @@ import {
   generateAIAction,
   calculateMatchResult,
 } from "@/lib/game-engine";
+import type { ProgressPayload } from "@/lib/multiplayer";
 
 interface GameStore {
   // Game state
@@ -35,6 +36,10 @@ interface GameStore {
   matchResult: MatchResult | null;
   matchType: "practice" | "ranked" | "challenge";
 
+  // Multiplayer
+  matchMode: "bot" | "multiplayer";
+  roomCode: string | null;
+
   // Actions
   initGame: (
     playerId: string,
@@ -43,10 +48,22 @@ interface GameStore {
     matchType: "practice" | "ranked" | "challenge",
     stakeAmount: number
   ) => void;
+  initMultiplayerGame: (
+    playerId: string,
+    playerUsername: string,
+    opponentUsername: string,
+    words: WordPrompt[],
+    difficulty: string,
+    trackLength: number,
+    roomCode: string
+  ) => void;
+  setMatchMode: (mode: "bot" | "multiplayer") => void;
+  setRoomCode: (code: string | null) => void;
   startCountdown: () => void;
   startRace: () => void;
   handleKeyPress: (key: string) => void;
   updateOpponent: () => void;
+  updateRemoteOpponent: (data: ProgressPayload) => void;
   tick: () => void;
   endGame: () => void;
   resetGame: () => void;
@@ -70,6 +87,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   matchResult: null,
   matchType: "practice",
 
+  matchMode: "bot",
+  roomCode: null,
+
   initGame: (playerId, playerUsername, difficulty, matchType, stakeAmount) => {
     const config = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.medium;
     const upcoming: WordPrompt[] = [];
@@ -91,8 +111,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
       stakeAmount,
       matchResult: null,
       matchType,
+      matchMode: "bot",
+      roomCode: null,
     });
   },
+
+  initMultiplayerGame: (playerId, playerUsername, opponentUsername, words, difficulty, trackLength, roomCode) => {
+    const config = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.medium;
+    const configWithTrack = { ...config, trackLength };
+
+    set({
+      gameState: "idle",
+      config: configWithTrack,
+      countdown: 3,
+      timeElapsed: 0,
+      startTime: null,
+      player: createPlayerState(playerId, playerUsername),
+      opponent: createPlayerState("remote-opponent", opponentUsername),
+      currentWord: words[0] || null,
+      wordHistory: [],
+      upcomingWords: words.slice(1),
+      stakeAmount: 0,
+      matchResult: null,
+      matchType: "ranked",
+      matchMode: "multiplayer",
+      roomCode,
+    });
+  },
+
+  setMatchMode: (mode) => set({ matchMode: mode }),
+  setRoomCode: (code) => set({ roomCode: code }),
 
   startCountdown: () => {
     set({ gameState: "countdown" });
@@ -110,7 +158,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.gameState !== "racing" || !state.currentWord || !state.startTime) return;
     if (state.player.isFinished) return;
 
-    // Capture charStates before processing (used to determine word correctness on completion)
     const prevCharStates = state.player.charStates;
 
     const result = processKeyPress(
@@ -121,11 +168,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state.startTime
     );
 
-    // If word completed, move to next word
     if (result.wordCompleted) {
       const newUpcoming = [...state.upcomingWords];
       const nextWord = newUpcoming.shift()!;
-      newUpcoming.push(generateNextWord(state.config.difficulty));
+      if (state.matchMode === "bot") {
+        newUpcoming.push(generateNextWord(state.config.difficulty));
+      }
 
       const wordCorrect = prevCharStates.length > 0 && prevCharStates.every((s) => s === "correct");
 
@@ -146,7 +194,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
     }
 
-    // Check if game should end
     if (result.player.isFinished) {
       get().endGame();
     }
@@ -154,17 +201,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   updateOpponent: () => {
     const state = get();
+    if (state.matchMode === "multiplayer") return;
     if (state.gameState !== "racing" || !state.startTime) return;
     if (state.opponent.isFinished) return;
 
     const elapsedMs = Date.now() - state.startTime;
-    const action = generateAIAction(state.config.difficulty, elapsedMs);
+    const action = generateAIAction(state.config.aiTargetWPM, elapsedMs);
 
     const updatedOpponent = { ...state.opponent };
 
     if (action.correct) {
-      // Treat each "correct" AI action as completing one word + space.
-      updatedOpponent.correctHits += 6; // ~one word (5 chars) + space
+      updatedOpponent.correctHits += 6;
       updatedOpponent.totalHits += 6;
       updatedOpponent.streak += 1;
       updatedOpponent.bestStreak = Math.max(
@@ -189,7 +236,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         updatedOpponent.progress = 100;
       }
     } else {
-      // AI made a mistake — just slows them down
       updatedOpponent.mistakes += 1;
       updatedOpponent.totalHits += 1;
       updatedOpponent.awaitingSpace = false;
@@ -206,6 +252,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ opponent: updatedOpponent });
 
     if (updatedOpponent.isFinished) {
+      get().endGame();
+    }
+  },
+
+  updateRemoteOpponent: (data: ProgressPayload) => {
+    const state = get();
+    if (state.gameState !== "racing") return;
+
+    const updatedOpponent = { ...state.opponent };
+    updatedOpponent.progress = data.progress;
+    updatedOpponent.wpm = data.wpm;
+    updatedOpponent.speed = data.wpm;
+    updatedOpponent.accuracy = data.accuracy;
+    updatedOpponent.correctHits = data.correctHits;
+    updatedOpponent.totalHits = data.totalHits;
+    updatedOpponent.streak = data.streak;
+    updatedOpponent.isFinished = data.isFinished;
+    updatedOpponent.username = data.username;
+
+    set({ opponent: updatedOpponent });
+
+    if (data.isFinished) {
       get().endGame();
     }
   },
@@ -252,6 +320,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       wordHistory: [],
       upcomingWords: [],
       matchResult: null,
+      matchMode: "bot",
+      roomCode: null,
     });
   },
 }));

@@ -4,6 +4,7 @@ import Link from "next/link";
 import AppHeader from "@/components/layout/AppHeader";
 import type { ReactNode } from "react";
 import type { TapestryProfile } from "@/lib/tapestry";
+import type { PendingPostType, PendingMeta } from "./FeedView";
 
 const TRENDING = [
   { id: "1", type: "race", label: "Race #8821", title: "Solana Speedrun", count: "2.4k", href: "/game" },
@@ -27,8 +28,12 @@ interface FeedLayoutProps {
   onPost: () => void;
   onChallenge: () => void;
   onFlexWPM: () => void;
+  onCancelPending: () => void;
+  pendingType: PendingPostType;
+  pendingMeta: PendingMeta;
   posting: boolean;
   loading: boolean;
+  stats: { wpmAvg: number; wins: number };
   feedContent: ReactNode;
 }
 
@@ -42,10 +47,16 @@ export function FeedLayout(props: FeedLayoutProps) {
     onPost,
     onChallenge,
     onFlexWPM,
+    onCancelPending,
+    pendingType,
+    pendingMeta,
     posting,
     loading,
+    stats,
     feedContent,
   } = props;
+
+  const hasPending = pendingType !== "normal";
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-sans min-h-screen transition-colors duration-300">
@@ -73,11 +84,11 @@ export function FeedLayout(props: FeedLayoutProps) {
               </div>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg text-center border border-slate-200 dark:border-slate-700">
-                  <span className="block text-2xl font-display font-bold text-slate-900 dark:text-white">—</span>
+                  <span className="block text-2xl font-display font-bold text-slate-900 dark:text-white">{stats.wpmAvg || "—"}</span>
                   <span className="text-xs text-slate-500 uppercase font-bold">WPM Avg</span>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg text-center border border-slate-200 dark:border-slate-700">
-                  <span className="block text-2xl font-display font-bold text-slate-900 dark:text-white">—</span>
+                  <span className="block text-2xl font-display font-bold text-slate-900 dark:text-white">{stats.wins || "—"}</span>
                   <span className="text-xs text-slate-500 uppercase font-bold">Wins</span>
                 </div>
               </div>
@@ -107,18 +118,27 @@ export function FeedLayout(props: FeedLayoutProps) {
           </aside>
 
           <div className="col-span-1 lg:col-span-6 space-y-6">
-            <div id="compose" className="bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm relative overflow-hidden group focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
-              <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+            <div id="compose" className={`bg-surface-light dark:bg-surface-dark border rounded-xl p-4 shadow-sm relative overflow-hidden group focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${hasPending ? (pendingType === "flex" ? "border-accent-pink" : "border-accent-blue") : "border-slate-200 dark:border-slate-700"}`}>
+              <div className={`absolute top-0 left-0 w-1 h-full ${hasPending ? (pendingType === "flex" ? "bg-accent-pink" : "bg-accent-blue") : "bg-primary"}`} />
               <div className="flex gap-4">
                 <div className="w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0">
                   {(profile?.username || "?")[0]?.toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <textarea value={postText} onChange={(e) => onPostTextChange(e.target.value)} placeholder="Share your latest race results or challenge someone..." className="w-full bg-transparent border-none focus:ring-0 text-slate-900 dark:text-slate-100 placeholder-slate-400 resize-none h-20 p-0" rows={3} disabled={!profile} />
+
+                  {pendingType === "flex" && pendingMeta.wpm != null && (
+                    <ComposerFlexPreview wpm={pendingMeta.wpm} onCancel={onCancelPending} />
+                  )}
+
+                  {pendingType === "challenge" && (
+                    <ComposerChallengePreview username={pendingMeta.challengerUsername || profile?.username || "you"} onCancel={onCancelPending} />
+                  )}
+
                   <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex gap-1">
-                      <button type="button" onClick={onFlexWPM} disabled={!profile} className="flex items-center gap-1 px-2.5 py-1.5 text-slate-400 hover:text-accent-pink hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition-colors text-xs font-medium disabled:opacity-40" title="Flex your WPM"><span className="material-icons text-lg">emoji_events</span><span className="hidden sm:inline">Flex WPM</span></button>
-                      <button type="button" onClick={onChallenge} disabled={!profile} className="flex items-center gap-1 px-2.5 py-1.5 text-slate-400 hover:text-accent-blue hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-xs font-medium disabled:opacity-40" title="Challenge someone"><span className="material-icons text-lg">swords</span><span className="hidden sm:inline">Challenge</span></button>
+                      <button type="button" onClick={onFlexWPM} disabled={!profile || pendingType === "flex"} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-40 ${pendingType === "flex" ? "text-accent-pink bg-pink-50 dark:bg-pink-900/20" : "text-slate-400 hover:text-accent-pink hover:bg-pink-50 dark:hover:bg-pink-900/20"}`} title="Flex your WPM"><span className="material-icons text-lg">emoji_events</span><span className="hidden sm:inline">Flex WPM</span></button>
+                      <button type="button" onClick={onChallenge} disabled={!profile || pendingType === "challenge"} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-40 ${pendingType === "challenge" ? "text-accent-blue bg-blue-50 dark:bg-blue-900/20" : "text-slate-400 hover:text-accent-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"}`} title="Challenge someone"><span className="material-icons text-lg">swords</span><span className="hidden sm:inline">Challenge</span></button>
                     </div>
                     <button type="button" onClick={onPost} disabled={!profile || !postText.trim() || posting} className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-1.5 rounded-lg font-bold text-sm shadow-pop-sm hover:shadow-pop hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                       {posting ? "Posting…" : "Post"}
@@ -179,6 +199,47 @@ export function FeedLayout(props: FeedLayoutProps) {
       <button type="button" onClick={() => document.getElementById("compose")?.scrollIntoView({ behavior: "smooth" })} className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-full shadow-pop flex items-center justify-center z-50 hover:scale-110 transition-transform" aria-label="New post">
         <span className="material-icons">edit</span>
       </button>
+    </div>
+  );
+}
+
+function ComposerFlexPreview({ wpm, onCancel }: { wpm: number; onCancel: () => void }) {
+  const tier =
+    wpm >= 100 ? "Elite" : wpm >= 70 ? "Advanced" : wpm >= 40 ? "Intermediate" : "Beginner";
+
+  return (
+    <div className="mt-2 rounded-lg border border-accent-pink/40 bg-gradient-to-r from-pink-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 p-3 relative">
+      <button type="button" onClick={onCancel} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors" title="Remove">
+        <span className="material-icons text-base">close</span>
+      </button>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-accent-pink/20 flex items-center justify-center">
+          <span className="material-icons text-accent-pink">emoji_events</span>
+        </div>
+        <div>
+          <div className="text-xs font-bold text-accent-pink uppercase">WPM Flex Card</div>
+          <div className="font-display font-bold text-lg">{wpm} WPM <span className="text-xs font-normal text-slate-500">• {tier}</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ComposerChallengePreview({ username, onCancel }: { username: string; onCancel: () => void }) {
+  return (
+    <div className="mt-2 rounded-lg border border-accent-blue/40 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 p-3 relative">
+      <button type="button" onClick={onCancel} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors" title="Remove">
+        <span className="material-icons text-base">close</span>
+      </button>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-accent-blue/20 flex items-center justify-center">
+          <span className="material-icons text-accent-blue">swords</span>
+        </div>
+        <div>
+          <div className="text-xs font-bold text-accent-blue uppercase">Challenge Card</div>
+          <div className="font-bold text-sm">@{username} is challenging you to a 1v1 race</div>
+        </div>
+      </div>
     </div>
   );
 }
