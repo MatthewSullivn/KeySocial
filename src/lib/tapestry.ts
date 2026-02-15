@@ -1,0 +1,414 @@
+const API_URL = process.env.NEXT_PUBLIC_TAPESTRY_API_URL || "https://api.usetapestry.dev/api/v1";
+const SERVER_API_KEY = process.env.TAPESTRY_API_KEY || process.env.NEXT_PUBLIC_TAPESTRY_API_KEY || "";
+const NAMESPACE = process.env.NEXT_PUBLIC_APP_NAMESPACE || "keysocial";
+
+interface TapestryProfile {
+  id: string;
+  username: string;
+  bio: string;
+  walletAddress: string;
+  namespace: string;
+  image?: string;
+  blockchain: string;
+  properties?: Record<string, string>;
+  socialCounts?: {
+    followers: number;
+    following: number;
+    posts: number;
+    likes: number;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * The Tapestry API nests profile data under a `.profile` key and puts
+ * walletAddress / socialCounts at the top level. This helper flattens
+ * the response into a single TapestryProfile object.
+ */
+function unwrapProfile(data: Record<string, unknown>): TapestryProfile {
+  const inner = (data.profile || data) as Record<string, unknown>;
+  const wallet = data.walletAddress || data.wallet;
+  const walletAddress =
+    typeof wallet === "string"
+      ? wallet
+      : wallet && typeof wallet === "object" && "address" in (wallet as Record<string, unknown>)
+      ? (wallet as Record<string, unknown>).address as string
+      : (inner.walletAddress as string) || "";
+
+  return {
+    id: (inner.id as string) || "",
+    username: (inner.username as string) || "",
+    bio: (inner.bio as string) || "",
+    walletAddress,
+    namespace: typeof inner.namespace === "string" ? inner.namespace : "",
+    image: (inner.image as string) || undefined,
+    blockchain: (inner.blockchain as string) || "SOLANA",
+    properties: (inner.customProperties || inner.properties || undefined) as
+      | Record<string, string>
+      | undefined,
+    socialCounts: (data.socialCounts || inner.socialCounts || undefined) as
+      | TapestryProfile["socialCounts"]
+      | undefined,
+    createdAt: (inner.created_at || inner.createdAt || undefined) as string | undefined,
+    updatedAt: (inner.updated_at || inner.updatedAt || undefined) as string | undefined,
+  };
+}
+
+interface TapestryContent {
+  id: string;
+  profileId: string;
+  content: string;
+  contentType: string;
+  properties?: Record<string, string>;
+  socialCounts?: {
+    comments: number;
+    likes: number;
+  };
+  createdAt?: string;
+  profile?: TapestryProfile;
+}
+
+interface TapestryComment {
+  id: string;
+  profileId: string;
+  contentId: string;
+  text: string;
+  createdAt?: string;
+  profile?: TapestryProfile;
+}
+
+async function tapestryFetch(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  // In the browser, use our Next.js proxy to avoid CORS + hide API key.
+  const isBrowser = typeof window !== "undefined";
+  const separator = endpoint.includes("?") ? "&" : "?";
+  const url = isBrowser
+    ? `/api/tapestry${endpoint}`
+    : `${API_URL}${endpoint}${separator}apiKey=${SERVER_API_KEY}`;
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  return response;
+}
+
+// ========================
+// PROFILE OPERATIONS
+// ========================
+
+export async function findOrCreateProfile(
+  walletAddress: string,
+  username: string,
+  bio: string = "",
+  image: string = ""
+): Promise<TapestryProfile> {
+  const body: Record<string, unknown> = {
+    walletAddress,
+    username,
+    bio,
+    blockchain: "SOLANA",
+    execution: "FAST_UNCONFIRMED",
+    namespace: NAMESPACE,
+  };
+
+  if (image) {
+    body.customProperties = [{ key: "image", value: image }];
+  }
+
+  const res = await tapestryFetch("/profiles/findOrCreate", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(`Failed to create profile: ${error}`);
+  }
+
+  const data = await res.json();
+  return unwrapProfile(data);
+}
+
+export async function getProfile(usernameOrId: string): Promise<TapestryProfile | null> {
+  const res = await tapestryFetch(`/profiles/${usernameOrId}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return unwrapProfile(data);
+}
+
+export async function updateProfile(
+  profileId: string,
+  updates: { username?: string; bio?: string; image?: string }
+): Promise<TapestryProfile> {
+  const body: Record<string, unknown> = {
+    ...updates,
+    blockchain: "SOLANA",
+    execution: "FAST_UNCONFIRMED",
+  };
+
+  const res = await tapestryFetch(`/profiles/${profileId}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) throw new Error("Failed to update profile");
+  return res.json();
+}
+
+export async function getProfileByWallet(walletAddress: string): Promise<TapestryProfile | null> {
+  try {
+    const res = await tapestryFetch(`/profiles?walletAddress=${walletAddress}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const profiles = data.profiles as Record<string, unknown>[] | undefined;
+    if (!profiles || profiles.length === 0) return null;
+    return unwrapProfile(profiles[0]);
+  } catch {
+    return null;
+  }
+}
+
+export async function searchProfiles(query: string): Promise<TapestryProfile[]> {
+  const res = await tapestryFetch(`/search/profiles?query=${encodeURIComponent(query)}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.profiles || data || [];
+}
+
+// ========================
+// FOLLOW OPERATIONS
+// ========================
+
+export async function followProfile(followerId: string, followeeId: string): Promise<void> {
+  const res = await tapestryFetch("/followers/add", {
+    method: "POST",
+    body: JSON.stringify({
+      startId: followerId,
+      endId: followeeId,
+      blockchain: "SOLANA",
+      execution: "FAST_UNCONFIRMED",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to follow");
+}
+
+export async function unfollowProfile(followerId: string, followeeId: string): Promise<void> {
+  const res = await tapestryFetch("/followers/remove", {
+    method: "POST",
+    body: JSON.stringify({
+      startId: followerId,
+      endId: followeeId,
+      blockchain: "SOLANA",
+      execution: "FAST_UNCONFIRMED",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to unfollow");
+}
+
+export async function checkFollowStatus(
+  followerId: string,
+  followeeId: string
+): Promise<boolean> {
+  const res = await tapestryFetch(
+    `/followers/state?followerId=${followerId}&followeeId=${followeeId}`
+  );
+  if (!res.ok) return false;
+  const data = await res.json();
+  return data.isFollowing || false;
+}
+
+export async function getFollowers(
+  profileId: string,
+  limit = 20,
+  offset = 0
+): Promise<TapestryProfile[]> {
+  const res = await tapestryFetch(
+    `/profiles/${profileId}/followers?limit=${limit}&offset=${offset}`
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.followers || data || [];
+}
+
+export async function getFollowing(
+  profileId: string,
+  limit = 20,
+  offset = 0
+): Promise<TapestryProfile[]> {
+  const res = await tapestryFetch(
+    `/profiles/${profileId}/following?limit=${limit}&offset=${offset}`
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.following || data || [];
+}
+
+// ========================
+// CONTENT OPERATIONS (Match Results & Posts)
+// ========================
+
+export async function createContent(
+  profileId: string,
+  content: string,
+  contentType: string = "text",
+  customProperties: { key: string; value: string }[] = []
+): Promise<TapestryContent> {
+  const res = await tapestryFetch("/contents/findOrCreate", {
+    method: "POST",
+    body: JSON.stringify({
+      profileId,
+      content,
+      contentType,
+      customProperties,
+      blockchain: "SOLANA",
+      execution: "FAST_UNCONFIRMED",
+      namespace: NAMESPACE,
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to create content");
+  return res.json();
+}
+
+export async function recordMatchResult(
+  profileId: string,
+  matchData: {
+    winnerId: string;
+    loserId: string;
+    winnerUsername: string;
+    loserUsername: string;
+    winnerWPM: number;
+    loserWPM: number;
+    winnerAccuracy: number;
+    loserAccuracy: number;
+    stakeAmount: number;
+    duration: number;
+    matchType: string;
+  }
+): Promise<TapestryContent> {
+  const content = `${matchData.winnerUsername} defeated ${matchData.loserUsername} in a KeySocial race! WPM: ${matchData.winnerWPM} vs ${matchData.loserWPM}`;
+
+  const customProperties = [
+    { key: "type", value: "match_result" },
+    { key: "winnerId", value: matchData.winnerId },
+    { key: "loserId", value: matchData.loserId },
+    { key: "winnerUsername", value: matchData.winnerUsername },
+    { key: "loserUsername", value: matchData.loserUsername },
+    { key: "winnerWPM", value: String(matchData.winnerWPM) },
+    { key: "loserWPM", value: String(matchData.loserWPM) },
+    { key: "winnerAccuracy", value: String(matchData.winnerAccuracy) },
+    { key: "loserAccuracy", value: String(matchData.loserAccuracy) },
+    { key: "stakeAmount", value: String(matchData.stakeAmount) },
+    { key: "duration", value: String(matchData.duration) },
+    { key: "matchType", value: matchData.matchType },
+  ];
+
+  return createContent(profileId, content, "text", customProperties);
+}
+
+export async function getContents(
+  limit = 20,
+  offset = 0
+): Promise<TapestryContent[]> {
+  const res = await tapestryFetch(
+    `/contents/?limit=${limit}&offset=${offset}&namespace=${NAMESPACE}`
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.contents || data || [];
+}
+
+export async function getContentById(contentId: string): Promise<TapestryContent | null> {
+  const res = await tapestryFetch(`/contents/${contentId}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// ========================
+// LIKES
+// ========================
+
+export async function likeContent(nodeId: string, profileId: string): Promise<void> {
+  const res = await tapestryFetch(`/likes/${nodeId}`, {
+    method: "POST",
+    body: JSON.stringify({
+      profileId,
+      blockchain: "SOLANA",
+      execution: "FAST_UNCONFIRMED",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to like");
+}
+
+export async function unlikeContent(nodeId: string, profileId: string): Promise<void> {
+  const res = await tapestryFetch(`/likes/${nodeId}`, {
+    method: "DELETE",
+    body: JSON.stringify({
+      profileId,
+      blockchain: "SOLANA",
+      execution: "FAST_UNCONFIRMED",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to unlike");
+}
+
+// ========================
+// COMMENTS
+// ========================
+
+export async function createComment(
+  profileId: string,
+  contentId: string,
+  text: string
+): Promise<TapestryComment> {
+  const res = await tapestryFetch("/comments/", {
+    method: "POST",
+    body: JSON.stringify({
+      profileId,
+      contentId,
+      text,
+      blockchain: "SOLANA",
+      execution: "FAST_UNCONFIRMED",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to create comment");
+  return res.json();
+}
+
+export async function getComments(
+  contentId: string,
+  limit = 20,
+  offset = 0
+): Promise<TapestryComment[]> {
+  const res = await tapestryFetch(
+    `/comments/?contentId=${contentId}&limit=${limit}&offset=${offset}`
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.comments || data || [];
+}
+
+// ========================
+// LEADERBOARD
+// ========================
+
+export async function getLeaderboard(): Promise<TapestryContent[]> {
+  // Fetch match results and aggregate wins
+  return getContents(100, 0);
+}
+
+// Export types
+export type { TapestryProfile, TapestryContent, TapestryComment };

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KeySocial Social Feed V1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#1a1a1a", // Dark charcoal for primary buttons/text
+                        accent: "#D6EF5B", // The lime green from the original screenshot
+                        "accent-dark": "#b0c92b",
+                        "card-pink": "#F45B8D",
+                        "card-purple": "#6B66F2",
+                        "card-teal": "#4FD1C5",
+                        "card-yellow": "#E5E560",
+                        "background-light": "#F9FAFB", // Slightly off-white for depth
+                        "background-dark": "#121212", // Deep dark mode background
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1E1E1E",
+                        "text-light": "#374151",
+                        "text-dark": "#D1D5DB",
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                    },
+                    backgroundImage: {
+                        'lime-blob': "url('https://placehold.co/600x600/D6EF5B/D6EF5B')", // Abstract shape placeholder
+                    }
+                },
+            },
+        };
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+        }.blob-bg {
+            position: fixed;
+            z-index: -1;
+            opacity: 0.6;
+            filter: blur(60px);
+        }
+        .dark .blob-bg {
+            opacity: 0.15;
+            filter: blur(80px);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-sans antialiased min-h-screen relative overflow-x-hidden selection:bg-accent selection:text-primary">
+<div class="blob-bg w-96 h-96 bg-accent rounded-full -top-20 -left-20"></div>
+<div class="blob-bg w-[500px] h-[500px] bg-accent rounded-full top-1/3 -right-40"></div>
+<div class="blob-bg w-80 h-80 bg-card-purple rounded-full bottom-0 left-1/3 opacity-20 dark:opacity-10"></div>
+<nav class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex justify-between h-16 items-center">
+<div class="flex items-center space-x-2">
+<div class="w-8 h-8 relative">
+<span class="absolute top-0 left-0 w-2 h-2 bg-primary dark:bg-white rounded-full"></span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-accent rounded-full"></span>
+<span class="absolute bottom-0 left-0 w-2 h-2 bg-accent rounded-full"></span>
+<span class="absolute bottom-0 right-0 w-2 h-2 bg-primary dark:bg-white rounded-full"></span>
+<div class="absolute inset-0 m-auto w-4 h-4 border-2 border-primary dark:border-white rounded-full"></div>
+</div>
+<span class="font-display font-bold text-xl text-primary dark:text-white">KeySocial</span>
+</div>
+<div class="hidden md:flex space-x-8 items-center">
+<a class="text-sm font-medium text-gray-900 dark:text-white hover:text-accent-dark dark:hover:text-accent transition-colors" href="#">Racing Hub</a>
+<a class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" href="#">Leaderboard</a>
+<a class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" href="#">Docs</a>
+<button class="bg-primary hover:bg-gray-800 text-white dark:bg-white dark:text-primary dark:hover:bg-gray-200 px-5 py-2 rounded-full text-sm font-medium transition-colors shadow-lg">
+                        Connect Wallet
+                    </button>
+</div>
+<div class="md:hidden flex items-center">
+<button class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none">
+<span class="material-icons">menu</span>
+</button>
+</div>
+</div>
+</div>
+</nav>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<div class="hidden lg:block lg:col-span-3 space-y-6">
+<div class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-6">
+<div class="flex items-center space-x-4 mb-4">
+<img alt="User Avatar" class="w-12 h-12 rounded-full border-2 border-accent" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAso2ZMsgyDR1IiCw9aj-qF-4YkfDlihAo30jQfkLHY2gflJCWRt-8rmO4nTsOXQjYqpVK4YMQ7Vr4EtYW5s2cEwEXHwfAG--GuTn3SD0mlWOtfpiv_xE3LUM3DMP-zKP_EB62ekBExB4X-EVk1PjIv3y4tnT89OODUJev7vgZxbbZGaWDpWNGwNTOo6dxAq0J7z7tpdY7481isRVU1yGZ64EKcN6ZXDy93eJjX-sFlmw4D86r4DgDeWXjQxqX1tRPTAeOjIsa3xrk"/>
+<div>
+<h3 class="font-display font-bold text-gray-900 dark:text-white">AlexTyper</h3>
+<p class="text-xs text-gray-500 dark:text-gray-400">Level 42 Speedster</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2 text-center mb-4">
+<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+<span class="block text-xs text-gray-500 dark:text-gray-400">WPM</span>
+<span class="font-bold text-primary dark:text-white">104</span>
+</div>
+<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+<span class="block text-xs text-gray-500 dark:text-gray-400">Rank</span>
+<span class="font-bold text-primary dark:text-white">#89</span>
+</div>
+</div>
+<button class="w-full py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                        View Profile
+                    </button>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-4">
+<ul class="space-y-1">
+<li>
+<a class="flex items-center space-x-3 px-4 py-3 bg-accent/20 text-gray-900 dark:text-white rounded-lg font-medium" href="#">
+<span class="material-icons text-gray-900 dark:text-white">dynamic_feed</span>
+<span>Global Feed</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-4 py-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition" href="#">
+<span class="material-icons">emoji_events</span>
+<span>Tournaments</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-4 py-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition" href="#">
+<span class="material-icons">groups</span>
+<span>Clans</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-4 py-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition" href="#">
+<span class="material-icons">analytics</span>
+<span>Stats</span>
+</a>
+</li>
+</ul>
+</div>
+</div>
+<div class="col-span-1 lg:col-span-6 space-y-6">
+<div class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-4">
+<div class="flex space-x-4">
+<img alt="Current User" class="w-10 h-10 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5_H8O4qnOpbhAp5sBhcA6InhC4sDaqQYRsl9QU_u2gG1cH5BR_rtMhW4cGJtf68h5jwJ2OK8E46ugp2--RkmfQFQEpWDl_Y4HzRywC4pyEfWOiEQ6ZwvQyQVoqbgWHYju4jwZqoHaC_cz6mqzz6zNVcEh5LpyZ2VbycW_R2Oe5h8IRhQy5HIu_O5cXG-YdxxiCa8Mf23NS5QJbDppHv3lhZTq6-CIMAbdnU4h-7MqPRkjTd9xw8YvmYm4UPdBBTEztZgH6eU0xEg"/>
+<div class="flex-1">
+<input class="w-full bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white placeholder-gray-400 text-lg" placeholder="Share your latest race result..." type="text"/>
+<div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+<div class="flex space-x-2">
+<button class="text-gray-400 hover:text-accent transition"><span class="material-icons text-xl">image</span></button>
+<button class="text-gray-400 hover:text-accent transition"><span class="material-icons text-xl">gif_box</span></button>
+<button class="text-gray-400 hover:text-accent transition"><span class="material-icons text-xl">bar_chart</span></button>
+</div>
+<button class="bg-primary dark:bg-white text-white dark:text-primary px-4 py-1.5 rounded-full text-sm font-bold hover:opacity-90 transition">
+                                    Post
+                                </button>
+</div>
+</div>
+</div>
+</div>
+<div class="flex space-x-6 border-b border-gray-200 dark:border-gray-800 pb-2 px-2">
+<button class="text-gray-900 dark:text-white font-bold border-b-2 border-accent pb-2">Following</button>
+<button class="text-gray-500 dark:text-gray-400 font-medium hover:text-gray-700 dark:hover:text-gray-200 pb-2 transition">Global Records</button>
+<button class="text-gray-500 dark:text-gray-400 font-medium hover:text-gray-700 dark:hover:text-gray-200 pb-2 transition">Recent Races</button>
+</div>
+<div class="relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm p-6 overflow-hidden group hover:shadow-md transition duration-300">
+<div class="absolute top-0 bottom-0 left-0 w-1.5 bg-card-pink"></div>
+<div class="flex justify-between items-start mb-3 pl-3">
+<div class="flex items-center space-x-3">
+<img alt="Avatar" class="w-10 h-10 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmZsYtqs1x4CySdhuPWF8uI-s2iz4KFnEYHNT8Vu5KSGWH4hv5yVISHBEKFa5RHHhyumHJF1bpMTq2xCLIihhH6nbLtYFBC1K3gh49b19B3Wg6V3KnoobZUNgrA8-qA-Myno0i02lc5dOgLb-nG-vfTwAsTFQ9YqWY5wYgRLUjTbApV2gzXv_WW4hRRYFb2iZEChc-k9y32xiRR5E5DWFcl4o8U21ZWxdvMWuiziD72WdLLjug9jm243TlsA6ul5rbrV-i8XG3SkI"/>
+<div>
+<div class="flex items-center space-x-2">
+<h4 class="font-display font-bold text-gray-900 dark:text-white hover:underline cursor-pointer">SarahScripts</h4>
+<span class="text-xs text-gray-400 dark:text-gray-500">• 2h ago</span>
+</div>
+<p class="text-xs text-card-pink font-semibold">New Personal Best! 🚀</p>
+</div>
+</div>
+<button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><span class="material-icons">more_horiz</span></button>
+</div>
+<div class="pl-3 mb-4">
+<p class="text-gray-700 dark:text-gray-300 mb-3 leading-relaxed">Just crushed my 60s sprint record. The mechanical keyboard definitely helps. Any challengers for the Solana Sprint Cup?</p>
+<div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+<div>
+<span class="text-xs text-gray-500 uppercase tracking-wide">Speed</span>
+<div class="text-2xl font-display font-bold text-gray-900 dark:text-white">128 WPM</div>
+</div>
+<div class="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+<div>
+<span class="text-xs text-gray-500 uppercase tracking-wide">Accuracy</span>
+<div class="text-2xl font-display font-bold text-gray-900 dark:text-white">99.2%</div>
+</div>
+<div class="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+<div>
+<span class="text-xs text-gray-500 uppercase tracking-wide">Rank Gain</span>
+<div class="text-2xl font-display font-bold text-green-500">+12</div>
+</div>
+</div>
+</div>
+<div class="pl-3 flex items-center space-x-6 text-gray-500 dark:text-gray-400">
+<button class="flex items-center space-x-1 hover:text-card-pink transition group-hover:text-gray-700 dark:group-hover:text-gray-300">
+<span class="material-icons text-sm">favorite_border</span>
+<span class="text-sm">24</span>
+</button>
+<button class="flex items-center space-x-1 hover:text-blue-500 transition">
+<span class="material-icons text-sm">chat_bubble_outline</span>
+<span class="text-sm">5</span>
+</button>
+<button class="flex items-center space-x-1 hover:text-green-500 transition">
+<span class="material-icons text-sm">repeat</span>
+<span class="text-sm">2</span>
+</button>
+<button class="flex items-center space-x-1 hover:text-primary dark:hover:text-white ml-auto transition">
+<span class="material-icons text-sm">ios_share</span>
+</button>
+</div>
+</div>
+<div class="relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm p-6 overflow-hidden group hover:shadow-md transition duration-300">
+<div class="absolute top-0 bottom-0 left-0 w-1.5 bg-card-purple"></div>
+<div class="flex justify-between items-start mb-3 pl-3">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-full bg-card-purple flex items-center justify-center text-white font-bold">KS</div>
+<div>
+<div class="flex items-center space-x-2">
+<h4 class="font-display font-bold text-gray-900 dark:text-white">KeySocial Official</h4>
+<span class="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Dev</span>
+<span class="text-xs text-gray-400 dark:text-gray-500">• 5h ago</span>
+</div>
+<p class="text-xs text-card-purple font-semibold">System Update</p>
+</div>
+</div>
+<button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><span class="material-icons">more_horiz</span></button>
+</div>
+<div class="pl-3 mb-4">
+<p class="text-gray-700 dark:text-gray-300 mb-3">We've just pushed an update to the matchmaking algorithm. Matches should be tighter based on your average WPM from the last 10 races. Let us know how it feels!</p>
+<div class="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+<p class="text-sm text-indigo-800 dark:text-indigo-200 font-medium">✨ Changelog v2.4.1 Live Now</p>
+</div>
+</div>
+<div class="pl-3 flex items-center space-x-6 text-gray-500 dark:text-gray-400">
+<button class="flex items-center space-x-1 hover:text-card-purple transition">
+<span class="material-icons text-sm">favorite_border</span>
+<span class="text-sm">156</span>
+</button>
+<button class="flex items-center space-x-1 hover:text-blue-500 transition">
+<span class="material-icons text-sm">chat_bubble_outline</span>
+<span class="text-sm">42</span>
+</button>
+<button class="flex items-center space-x-1 hover:text-green-500 transition">
+<span class="material-icons text-sm">repeat</span>
+<span class="text-sm">18</span>
+</button>
+</div>
+</div>
+<div class="relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm p-6 overflow-hidden group hover:shadow-md transition duration-300">
+<div class="absolute top-0 bottom-0 left-0 w-1.5 bg-card-teal"></div>
+<div class="flex justify-between items-start mb-3 pl-3">
+<div class="flex items-center space-x-3">
+<img alt="Avatar" class="w-10 h-10 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD404UPcy4A0fcl4w7e-ix4yhufpcNFW_QZ69XBAttZ3VhNAntlWxFOeSuQ08r1UGUsF-okjoIS5DUfcyVA7UgYIqhQtDQdm3q8DvfiWFmU4P_kxDDtnucQFnzNOwTHQxb-MNBnuYn0ohdyRiMZA2UR3lL0pH00LbXLyYuB8z843nQ6ZpqS_y5NjG7CuNpWjJ2T0rLgibLRkO8Rw10_SaX-ITV5jnvKreBhYtl8OxvlHFWR1SJaLMAwjae5xfcBXzF5AR918H2vQGI"/>
+<div>
+<div class="flex items-center space-x-2">
+<h4 class="font-display font-bold text-gray-900 dark:text-white">NeoDrifter</h4>
+<span class="text-xs text-gray-400 dark:text-gray-500">• 8h ago</span>
+</div>
+<p class="text-xs text-card-teal font-semibold">Clan War Alert ⚔️</p>
+</div>
+</div>
+</div>
+<div class="pl-3 mb-4">
+<p class="text-gray-700 dark:text-gray-300 mb-3">Clan [QWERTY] is challenging [WASD] to a 5v5 relay race tonight at 8 PM EST. Winner takes the pool!</p>
+<div class="bg-gradient-to-r from-card-teal/10 to-blue-500/10 rounded-xl p-4 border border-card-teal/20">
+<div class="flex justify-between items-center">
+<div class="text-center">
+<span class="block text-2xl font-black text-gray-800 dark:text-white">QWERTY</span>
+<span class="text-xs text-gray-500">Avg: 110 WPM</span>
+</div>
+<div class="px-3 py-1 bg-white dark:bg-background-dark rounded-full text-xs font-bold shadow-sm">VS</div>
+<div class="text-center">
+<span class="block text-2xl font-black text-gray-800 dark:text-white">WASD</span>
+<span class="text-xs text-gray-500">Avg: 112 WPM</span>
+</div>
+</div>
+<div class="mt-3 text-center">
+<button class="w-full bg-card-teal hover:bg-teal-500 text-white py-1.5 rounded-lg text-sm font-bold transition shadow-sm">
+                                    Place Bet on Chain
+                                </button>
+</div>
+</div>
+</div>
+<div class="pl-3 flex items-center space-x-6 text-gray-500 dark:text-gray-400">
+<button class="flex items-center space-x-1 hover:text-card-teal transition">
+<span class="material-icons text-sm">favorite_border</span>
+<span class="text-sm">89</span>
+</button>
+<button class="flex items-center space-x-1 hover:text-blue-500 transition">
+<span class="material-icons text-sm">chat_bubble_outline</span>
+<span class="text-sm">34</span>
+</button>
+</div>
+</div>
+<div class="relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm p-6 overflow-hidden group hover:shadow-md transition duration-300">
+<div class="absolute top-0 bottom-0 left-0 w-1.5 bg-gray-300 dark:bg-gray-600"></div>
+<div class="flex justify-between items-start mb-3 pl-3">
+<div class="flex items-center space-x-3">
+<img alt="Avatar" class="w-10 h-10 rounded-full grayscale opacity-70" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1V-j5UdOA87VT-FFnkMZHv6r0F4q9VVKaMYLHXlXWB9M2vXyTAhJR8HrKZhXnKcyyp_YDqaf7vFIQ71yzpgRI6wuYdRmFuRWvbuml3bUOca4FSB3OJhh5KRvdxYylo666oBSoqXM7MAQ-S-ALhn740t5llJOEPzyCNtZtOIu64vs7N81YFHhy5O-nQvkYEZzZyQQrLtOpW5WSNdYzh88dwQM8oJRtVR_96MP6I1u41sCJ8MFGeKUWt97EyUem54SS2CrhbLJXark"/>
+<div>
+<div class="flex items-center space-x-2">
+<h4 class="font-display font-bold text-gray-900 dark:text-white">GhostTyper</h4>
+<span class="text-xs text-gray-400 dark:text-gray-500">• 12h ago</span>
+</div>
+</div>
+</div>
+</div>
+<div class="pl-3">
+<p class="text-gray-700 dark:text-gray-300">Anyone else experiencing lag on the 'Cyberpunk' theme track? My WPM drops by like 10 whenever the neon rain starts.</p>
+</div>
+<div class="pl-3 mt-4 flex items-center space-x-6 text-gray-500 dark:text-gray-400">
+<button class="flex items-center space-x-1 hover:text-red-500 transition">
+<span class="material-icons text-sm">favorite_border</span>
+<span class="text-sm">3</span>
+</button>
+<button class="flex items-center space-x-1 hover:text-blue-500 transition">
+<span class="material-icons text-sm">chat_bubble_outline</span>
+<span class="text-sm">12</span>
+</button>
+</div>
+</div>
+</div>
+<div class="hidden lg:block lg:col-span-3 space-y-6">
+<div class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-0 overflow-hidden">
+<div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-card-yellow/20">
+<h3 class="font-display font-bold text-gray-900 dark:text-white">Trending Matches</h3>
+<span class="relative flex h-3 w-3">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+</span>
+</div>
+<div class="divide-y divide-gray-100 dark:divide-gray-800">
+<div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer group">
+<div class="flex justify-between items-center mb-2">
+<span class="text-xs font-bold text-gray-500">TYPE-OFF • 100 SOL</span>
+<span class="text-[10px] text-red-500 font-bold border border-red-200 bg-red-50 rounded px-1">LIVE</span>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex -space-x-2">
+<img alt="" class="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCIbanEooBtx_sQK8uYXTbMp4-0QTfdKu8ZbJ22ppSbBzCWziUEtmSTGxFKlgkGXnXYTaqqvamPZaYN9Sm7MQRmgB9nr3pZm6SFALVgwQiJzW_78CoHtFmyUEudhcfemYipWqcc35VuPpv6Ct7PdB1annRD_zAt53qb5wet5FAeyk0_Df99tQ2ZQO-qOCtaR9NRV71OVReJRaVg3ILOjWqY-W-4e_azTSuQgO48KGfWvkAhna9b-zdbZgvvTS4-kmQ6RFN_sGkTZM"/>
+<img alt="" class="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAolGL1thzr5ZBgMSilL16V5ich1bCUjMm9oj6GN0gIqBwMhsotIp9hNizDGIukxJ103M3vQMXyt53Rj83y6Xq1_arD6_o7WyLbfBPv9ZXosNeHV9UQQmB5sJDTVsV2y4a9JmUOn4jopWnn_u-2LRqnhlZCed-S6kN5L2A-scYhw9V8HPwyL-WLWfEW7dMsiWLH_i3Qtlzca9K-IRVMZi-3sXEYQCzXovdYMT7D3NBxO-8eUMWLOa8RCLgMx-2HMx2y36RtH2dFdaQ"/>
+</div>
+<div class="text-right">
+<div class="text-sm font-bold text-gray-900 dark:text-white">Alice vs Bob</div>
+<div class="text-xs text-gray-500">Final Lap</div>
+</div>
+</div>
+<div class="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+<div class="bg-card-yellow h-1.5 rounded-full" style="width: 85%"></div>
+</div>
+</div>
+<div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer">
+<div class="flex justify-between items-center mb-2">
+<span class="text-xs font-bold text-gray-500">SPEEDRUN • 5 SOL</span>
+<span class="text-[10px] text-gray-400 font-bold border border-gray-200 rounded px-1">2m ago</span>
+</div>
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 text-white flex items-center justify-center text-xs font-bold">Z</div>
+<div>
+<div class="text-sm font-bold text-gray-900 dark:text-white">ZenMaster</div>
+<div class="text-xs text-green-500 font-medium">New Record!</div>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full py-3 text-center text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                        View All Live Races
+                    </button>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+<h3 class="font-display font-bold text-gray-900 dark:text-white mb-4">Top Racers to Follow</h3>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<img class="w-10 h-10 rounded-full bg-gray-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRGT7aOOpn-Y3cWQMYCmp_89TXqgVYq-C0Y0DVjQ68vqZ_HKM41bKu8Cem8WlJMUS9yTejkJK6vEyZhRW15zI8kFSHNT0Nz5bQ-Qz66aBMy2MeCRv867a2vGJ4HsezfwqB7cqUHnH-_YlLcR4HpQrwtp1cRbHjcWsfLXYy2pwifte3N3aFRIG74KOLsKT9qz-Y0dhfIitilRPJAt70b6t6y2Q9chu5cF5GTrERnsmByEk_Ntf0xnT_gfgtQse1MeLsTeNgx9TuHpw"/>
+<div>
+<p class="text-sm font-bold text-gray-900 dark:text-white">SpeedyG</p>
+<p class="text-xs text-gray-500">140 WPM</p>
+</div>
+</div>
+<button class="text-accent-dark dark:text-accent hover:bg-accent/10 p-1.5 rounded-full transition">
+<span class="material-icons text-xl">person_add</span>
+</button>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<img class="w-10 h-10 rounded-full bg-gray-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDj_d2kr5AwHVgSBGqGI8WcnfsMXDHPXhigVB80EeqeDifwckLZDYcOiMky2x8LVoneAji44GWDTQC6j3McI504UCSTmCJ__0mPIi7JChVdhnG3d7EmvwK9aqMHgot9QAEohb_HUMeNMeVO45wa0piKE92XFN1DjPUnB_3ikaIZt3fdyHSXpIUncXYXl-UDJuFOyvU70z4VrpXJXcmNFkvoSwpdfrxNhO1gzYPEJ-7MCv2g_-gYyHa08HHYUfrw0V9-ub0bQXxUp88"/>
+<div>
+<p class="text-sm font-bold text-gray-900 dark:text-white">KeyQueen</p>
+<p class="text-xs text-gray-500">138 WPM</p>
+</div>
+</div>
+<button class="text-accent-dark dark:text-accent hover:bg-accent/10 p-1.5 rounded-full transition">
+<span class="material-icons text-xl">person_add</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-400 px-2">
+<a class="hover:underline" href="#">Privacy</a>
+<a class="hover:underline" href="#">Terms</a>
+<a class="hover:underline" href="#">Advertising</a>
+<a class="hover:underline" href="#">Cookies</a>
+<span class="w-full mt-2">© 2024 KeySocial Inc.</span>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:hidden fixed bottom-6 right-6 z-40">
+<button class="bg-primary hover:bg-gray-800 text-white dark:bg-accent dark:text-primary rounded-full p-4 shadow-xl transition-transform hover:scale-110 flex items-center justify-center">
+<span class="material-icons">add</span>
+</button>
+</div>
+<script>
+        // Simple logic to ensure the DOM is ready (though not strictly needed with Tailwind JIT via CDN)
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('KeySocial Feed Loaded');
+        });
+    </script>
+
+</body></html>

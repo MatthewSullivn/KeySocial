@@ -1,0 +1,225 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --neon-green: #39FF14;
+  --neon-blue: #00f0ff;
+  --neon-purple: #b829ff;
+  --neon-pink: #ff2d78;
+  --neon-yellow: #ffe600;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #F7F9FB;
+  color: #111827;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111118;
+}
+::-webkit-scrollbar-thumb {
+  background: #32323f;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a5a;
+}
+
+/* Neon text utilities */
+@layer utilities {
+  .text-glow-green {
+    text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green), 0 0 40px var(--neon-green);
+  }
+  .text-glow-blue {
+    text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue), 0 0 40px var(--neon-blue);
+  }
+  .text-glow-purple {
+    text-shadow: 0 0 10px var(--neon-purple), 0 0 20px var(--neon-purple), 0 0 40px var(--neon-purple);
+  }
+  .text-glow-pink {
+    text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink);
+  }
+
+  .border-glow-green {
+    box-shadow: 0 0 5px var(--neon-green), inset 0 0 5px rgba(57, 255, 20, 0.1);
+  }
+  .border-glow-blue {
+    box-shadow: 0 0 5px var(--neon-blue), inset 0 0 5px rgba(0, 240, 255, 0.1);
+  }
+  .border-glow-purple {
+    box-shadow: 0 0 5px var(--neon-purple), inset 0 0 5px rgba(184, 41, 255, 0.1);
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(57, 255, 20, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57, 255, 20, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  .racing-track {
+    background: linear-gradient(90deg, #111118 0%, #1a1a24 50%, #111118 100%);
+    border-top: 2px dashed rgba(57, 255, 20, 0.3);
+    border-bottom: 2px dashed rgba(57, 255, 20, 0.3);
+  }
+}
+
+/* Key animation */
+.key-correct {
+  animation: keyCorrect 0.2s ease-out;
+}
+.key-wrong {
+  animation: keyWrong 0.3s ease-in-out;
+}
+
+@keyframes keyCorrect {
+  0% { transform: scale(1); background-color: rgba(57, 255, 20, 0.3); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); background-color: transparent; }
+}
+
+@keyframes keyWrong {
+  0% { transform: translateX(0); background-color: rgba(255, 45, 120, 0.3); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+  100% { transform: translateX(0); background-color: transparent; }
+}
+
+
+/* Race track stripes */
+.track-stripe {
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 20px,
+    rgba(57, 255, 20, 0.05) 20px,
+    rgba(57, 255, 20, 0.05) 40px
+  );
+}
+
+/* ===== New template helpers ===== */
+.glass-panel {
+  background: rgba(16, 28, 34, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(37, 175, 244, 0.1);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(37, 175, 244, 0.05);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(37, 175, 244, 0.2);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 175, 244, 0.4);
+}
+
+.retro-grid {
+  background-image:
+    linear-gradient(to right, rgba(37, 175, 244, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 175, 244, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+  transform: perspective(500px) rotateX(60deg);
+  transform-origin: center top;
+  position: absolute;
+  inset: -100% -50%;
+  height: 300%;
+  width: 200%;
+  z-index: 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+}
+
+.typing-cursor {
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  0%,
+  100% {
+    border-color: transparent;
+  }
+  50% {
+    border-color: #25aff4;
+  }
+}
+
+/* v2 template utility classes */
+.organic-blob {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.blob-bg {
+  position: fixed;
+  z-index: -1;
+  opacity: 0.6;
+  filter: blur(60px);
+}
+.dark .blob-bg {
+  opacity: 0.15;
+  filter: blur(80px);
+}
+
+.blob-shape {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.outline-card {
+  border: 1px solid #e5e7eb;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dark .outline-card {
+  border: 1px solid #374151;
+}
+.outline-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Wallet adapter overrides */
+.wallet-adapter-button {
+  background: linear-gradient(135deg, #39FF14, #00f0ff) !important;
+  color: #0a0a0f !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  padding: 10px 24px !important;
+  transition: all 0.2s !important;
+}
+.wallet-adapter-button:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
+}
+.wallet-adapter-modal-wrapper {
+  background: #111118 !important;
+  border: 1px solid #32323f !important;
+  border-radius: 16px !important;
+}
+.wallet-adapter-modal-title {
+  color: #e2e8f0 !important;
+}

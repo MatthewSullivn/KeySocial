@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KeySocial Player Profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#25aff4",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101c22",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-white font-display min-h-screen flex overflow-hidden selection:bg-primary selection:text-white">
+<!-- Sidebar -->
+<aside class="w-64 border-r border-white/5 bg-background-dark flex flex-col h-screen fixed left-0 top-0 z-50">
+<div class="p-6 flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">K</div>
+<span class="text-xl font-bold tracking-tight">KeySocial</span>
+</div>
+<nav class="flex-1 px-4 py-4 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors group" href="#">
+<span class="material-icons text-xl group-hover:text-primary transition-colors">home</span>
+<span class="font-medium">Home</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-primary/10 text-primary rounded-xl transition-colors" href="#">
+<span class="material-icons text-xl">person</span>
+<span class="font-medium">Profile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors group" href="#">
+<span class="material-icons text-xl group-hover:text-primary transition-colors">sports_esports</span>
+<span class="font-medium">Races</span>
+<span class="ml-auto bg-primary text-white text-xs px-2 py-0.5 rounded-full">Live</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors group" href="#">
+<span class="material-icons text-xl group-hover:text-primary transition-colors">leaderboard</span>
+<span class="font-medium">Leaderboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors group" href="#">
+<span class="material-icons text-xl group-hover:text-primary transition-colors">account_balance_wallet</span>
+<span class="font-medium">Wallet</span>
+</a>
+</nav>
+<div class="p-4 border-t border-white/5">
+<div class="bg-white/5 rounded-xl p-4 flex items-center gap-3 hover:bg-white/10 transition-colors cursor-pointer">
+<img class="w-10 h-10 rounded-full object-cover border-2 border-primary/30" data-alt="User profile avatar small" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW4EJP925mQQSkYFl9pqwTiG6YmHk1PhoVyhA2bOMraSLEU-PkP0wOoj41frpXwlWdmvrRQ4sC5MFsju5gUvZkBVgB_sAkx0DDIezleaS99UTqMK77MGUapAaAek6OSMoZYLlRu87m2jkH5Nv1rTbcqmPa8xIR1J6TqYDwC_icMgnjXvPufhZq4xKhSIHBQeTDdgW-yaEWpwVGbPvX1ik6YYK7inYDvPc_ImpbkmuboEyBKPuhSfunSkhcRaRkiprUtN5gvnVd07ng"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold truncate">Current User</p>
+<p class="text-xs text-slate-400 truncate">12.5 SOL</p>
+</div>
+<span class="material-icons text-slate-400 text-sm">settings</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 ml-64 p-8 lg:p-12 overflow-y-auto h-screen bg-background-dark relative">
+<!-- Ambient Background Glow -->
+<div class="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+<div class="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]"></div>
+<div class="absolute bottom-[-10%] left-[20%] w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[100px]"></div>
+</div>
+<div class="relative z-10 max-w-6xl mx-auto space-y-8">
+<!-- Profile Header -->
+<header class="flex flex-col md:flex-row gap-8 items-start">
+<div class="relative group">
+<div class="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+<div class="relative w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-background-dark ring-2 ring-white/10">
+<img class="w-full h-full object-cover rounded-full" data-alt="Large profile picture of a young man with glasses" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC55MiKvY-h7mT5gI5OGWAr0rHOWjUxAVmGWWC-94rg9C_brUcBq2wR-J-gjubCKxcX7F9Xwk0BiBkyPbvR0Hp4mlJYd4D9zX_98_nb7nd4my0Ut9zkioUcaMbYKKjJjepiHKU9sf4J5Mv4kfFlLy1JGE6ZBSParjarxgg2IXnt_mLGcsVm3GDIEGjzzPIpMOamIDT0khNmITvf0MrNZiNAh5MuNmVKw3FGZRQcyOPD9BdscVM5QxjqC2oAaCeV7v3oqKHzp9_zWJib"/>
+<div class="absolute bottom-2 right-2 w-6 h-6 bg-green-500 border-4 border-background-dark rounded-full" title="Online"></div>
+</div>
+</div>
+<div class="flex-1 pt-2">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+<div>
+<h1 class="text-4xl font-bold text-white mb-1">TurboTyper_99</h1>
+<p class="text-primary font-medium">@turbotyper</p>
+</div>
+<div class="flex gap-3">
+<button class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg transition-all shadow-[0_0_20px_rgba(37,175,244,0.3)] hover:shadow-[0_0_30px_rgba(37,175,244,0.5)] flex items-center gap-2">
+<span class="material-icons text-sm">add</span> Follow
+                            </button>
+<button class="px-6 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-lg transition-all flex items-center gap-2">
+<span class="material-icons text-sm">flash_on</span> Challenge
+                            </button>
+<button class="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg transition-all">
+<span class="material-icons text-sm">more_horiz</span>
+</button>
+</div>
+</div>
+<p class="text-slate-400 max-w-2xl text-lg leading-relaxed mb-6">
+                        Top 500 racer. High stakes only. 120 WPM average. Currently building a custom mechanical keyboard empire. Let's race for SOL 🚀
+                    </p>
+<div class="flex gap-6 text-sm text-slate-400">
+<div class="flex items-center gap-2">
+<span class="material-icons text-base">calendar_today</span> Joined Mar 2023
+                        </div>
+<div class="flex items-center gap-2">
+<span class="material-icons text-base">link</span> <a class="text-primary hover:underline" href="#">turbotyper.sol</a>
+</div>
+</div>
+</div>
+</header>
+<!-- Stats Bar -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Wins -->
+<div class="bg-white/5 border border-white/5 rounded-xl p-5 hover:border-primary/30 transition-colors group">
+<div class="flex justify-between items-start mb-2">
+<span class="text-slate-400 text-sm font-medium uppercase tracking-wider">Wins</span>
+<span class="material-icons text-green-500 bg-green-500/10 p-1 rounded">trending_up</span>
+</div>
+<div class="text-3xl font-bold text-white">142</div>
+<div class="text-xs text-slate-500 mt-1">Top 5% of players</div>
+</div>
+<!-- Losses -->
+<div class="bg-white/5 border border-white/5 rounded-xl p-5 hover:border-red-500/30 transition-colors">
+<div class="flex justify-between items-start mb-2">
+<span class="text-slate-400 text-sm font-medium uppercase tracking-wider">Losses</span>
+<span class="material-icons text-red-500 bg-red-500/10 p-1 rounded">trending_down</span>
+</div>
+<div class="text-3xl font-bold text-white">34</div>
+<div class="text-xs text-slate-500 mt-1">Last loss 2 days ago</div>
+</div>
+<!-- Win Rate -->
+<div class="bg-white/5 border border-white/5 rounded-xl p-5 hover:border-primary/30 transition-colors relative overflow-hidden">
+<div class="relative z-10">
+<div class="flex justify-between items-start mb-2">
+<span class="text-slate-400 text-sm font-medium uppercase tracking-wider">Win Rate</span>
+<span class="material-icons text-primary bg-primary/10 p-1 rounded">pie_chart</span>
+</div>
+<div class="text-3xl font-bold text-white">80.6%</div>
+<div class="text-xs text-slate-500 mt-1">+2.4% this week</div>
+</div>
+<!-- Decorative Chart Background -->
+<div class="absolute -bottom-4 -right-4 w-24 h-24 rounded-full border-8 border-primary/10 border-t-primary/30 transform rotate-45"></div>
+</div>
+<!-- Total Earnings -->
+<div class="bg-gradient-to-br from-primary/20 to-purple-600/20 border border-primary/30 rounded-xl p-5 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-[40px] -mr-10 -mt-10"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-start mb-2">
+<span class="text-primary text-sm font-medium uppercase tracking-wider">Total Earned</span>
+<span class="material-icons text-white bg-primary p-1 rounded">account_balance_wallet</span>
+</div>
+<div class="text-3xl font-bold text-white flex items-center gap-2">
+                            45.2 <span class="text-lg text-primary font-normal">SOL</span>
+</div>
+<div class="text-xs text-slate-300 mt-1">≈ $6,450.23 USD</div>
+</div>
+</div>
+</section>
+<!-- Tabs -->
+<div class="border-b border-white/10">
+<div class="flex gap-8">
+<button class="px-4 py-4 text-white font-medium border-b-2 border-primary text-lg transition-colors">
+                        Match History
+                    </button>
+<button class="px-4 py-4 text-slate-400 hover:text-white font-medium border-b-2 border-transparent hover:border-white/10 text-lg transition-colors">
+                        Posts
+                    </button>
+<button class="px-4 py-4 text-slate-400 hover:text-white font-medium border-b-2 border-transparent hover:border-white/10 text-lg transition-colors">
+                        NFT Garage
+                    </button>
+</div>
+</div>
+<!-- Content Area: Match History -->
+<div class="bg-white/5 rounded-xl border border-white/5 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-white/5 border-b border-white/5 text-slate-400 text-xs uppercase tracking-wider">
+<th class="p-5 font-medium">Result</th>
+<th class="p-5 font-medium">Opponent</th>
+<th class="p-5 font-medium">Stake</th>
+<th class="p-5 font-medium text-right">Speed (WPM)</th>
+<th class="p-5 font-medium text-right">Date</th>
+<th class="p-5 font-medium text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5 text-sm">
+<!-- Row 1 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="p-5">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/20">
+                                        WIN
+                                    </span>
+</td>
+<td class="p-5">
+<div class="flex items-center gap-3">
+<img class="w-8 h-8 rounded-full object-cover" data-alt="Opponent avatar female" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNzxCNpNnP-OsnTJWPQnvoDVCLNTrfL-I4QOhcPf_ew0vstVBxgFZUJYI_yNKI8hftHH84Sj5vpbrryIzPBhFCfZqriQ8r0K0dmAIJhGv91QQ9yoKkzCAnrxtlnd5JDTqZCMEjI5v5AmuPd7y5q-GveEVJ8tmz7n3j_MW9Tfcml32gcFUIEsY0zdsqvttYhaTtwwa7JQ0kPDoQRUUs1Fn9oDBpHdD6OJ5EVS0b6nyz7t7F_xLtfZHXBwbgfw3aA5BMcedHMSTmzMiK"/>
+<div>
+<div class="font-medium text-white">CryptoRacer</div>
+<div class="text-xs text-slate-500">Rank #402</div>
+</div>
+</div>
+</td>
+<td class="p-5 text-white font-medium">0.5 SOL</td>
+<td class="p-5 text-right font-mono text-primary">124</td>
+<td class="p-5 text-right text-slate-400">10 mins ago</td>
+<td class="p-5 text-right">
+<button class="text-slate-500 hover:text-white transition-colors">
+<span class="material-icons text-lg">visibility</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="p-5">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/20">
+                                        WIN
+                                    </span>
+</td>
+<td class="p-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold text-white">B</div>
+<div>
+<div class="font-medium text-white">BlockSlayer</div>
+<div class="text-xs text-slate-500">Rank #890</div>
+</div>
+</div>
+</td>
+<td class="p-5 text-white font-medium">0.1 SOL</td>
+<td class="p-5 text-right font-mono text-primary">118</td>
+<td class="p-5 text-right text-slate-400">2 hours ago</td>
+<td class="p-5 text-right">
+<button class="text-slate-500 hover:text-white transition-colors">
+<span class="material-icons text-lg">visibility</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="p-5">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/20">
+                                        LOSS
+                                    </span>
+</td>
+<td class="p-5">
+<div class="flex items-center gap-3">
+<img class="w-8 h-8 rounded-full object-cover" data-alt="Opponent avatar male" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxc-vm04_fGnpAq6_ig5DimezgIu6Plh3vk4Lr6n21isImFQmq5wip-OX19vJgfBI3uofzN4wMPE8nXdHLw8GCq4Za4IlfE1fA2MmAMRpxcbvGPzlfOnNEFeNbsLskczW0bYYB9J3VAVETTfbbm3I59nz1Kp-qNE66tsqIz2xDIzBtuTdt-MyhMLngEjGbAxa2v7X2_bq0u9nl7QHpdAyXrHl3r57awpwiWtSva2XHyr48gCD6pFTLJVpiLs-_QMhMNLgXywSnDHXI"/>
+<div>
+<div class="font-medium text-white">SpeedDemon_X</div>
+<div class="text-xs text-slate-500">Rank #45</div>
+</div>
+</div>
+</td>
+<td class="p-5 text-white font-medium">1.0 SOL</td>
+<td class="p-5 text-right font-mono text-slate-400">115</td>
+<td class="p-5 text-right text-slate-400">Yesterday</td>
+<td class="p-5 text-right">
+<button class="text-slate-500 hover:text-white transition-colors">
+<span class="material-icons text-lg">visibility</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="p-5">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/20">
+                                        WIN
+                                    </span>
+</td>
+<td class="p-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white">N</div>
+<div>
+<div class="font-medium text-white">NoScopeTyper</div>
+<div class="text-xs text-slate-500">Rank #600</div>
+</div>
+</div>
+</td>
+<td class="p-5 text-white font-medium">0.25 SOL</td>
+<td class="p-5 text-right font-mono text-primary">121</td>
+<td class="p-5 text-right text-slate-400">2 days ago</td>
+<td class="p-5 text-right">
+<button class="text-slate-500 hover:text-white transition-colors">
+<span class="material-icons text-lg">visibility</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-white/5 bg-white/[0.02] flex justify-center">
+<button class="text-sm text-slate-400 hover:text-white transition-colors font-medium flex items-center gap-2">
+                        Load More Matches <span class="material-icons text-sm">expand_more</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

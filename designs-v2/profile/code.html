@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KeySocial Profile - V1</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#D4EC58", // Lime green from reference
+                        secondary: "#2D2D2D",
+                        "primary-dark": "#B8D43B",
+                        "accent-teal": "#5EEAD4",
+                        "background-light": "#F7F9FB",
+                        "background-dark": "#121212",
+                        "card-light": "#FFFFFF",
+                        "card-dark": "#1E1E1E",
+                        "text-light": "#1F2937",
+                        "text-dark": "#E5E7EB",
+                        "muted-light": "#6B7280",
+                        "muted-dark": "#9CA3AF",
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                        'xl': "1rem",
+                        '2xl': "1.5rem",
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'glow': '0 0 20px -5px rgba(212, 236, 88, 0.4)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>.timeline-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .timeline-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .timeline-scroll::-webkit-scrollbar-thumb {
+            background-color: #D1D5DB;
+            border-radius: 20px;
+        }
+        .dark .timeline-scroll::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+        }
+        .blob-shape {
+            position: absolute;
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-sans transition-colors duration-300 min-h-screen relative overflow-x-hidden">
+<div class="blob-shape top-[-10%] left-[-5%] w-96 h-96 bg-primary opacity-30 blur-3xl rounded-full"></div>
+<div class="blob-shape bottom-[-10%] right-[-5%] w-[30rem] h-[30rem] bg-primary opacity-20 blur-3xl rounded-full"></div>
+<div class="blob-shape top-[20%] right-[10%] w-48 h-48 bg-accent-teal opacity-20 blur-3xl rounded-full"></div>
+<nav class="relative z-50 w-full px-6 py-4 flex justify-between items-center max-w-7xl mx-auto">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 bg-secondary dark:bg-white rounded-lg flex items-center justify-center">
+<span class="material-icons-outlined text-white dark:text-secondary text-sm">keyboard</span>
+</div>
+<span class="font-display font-bold text-xl tracking-tight">KeySocial</span>
+</div>
+<div class="hidden md:flex items-center gap-8 font-medium text-sm">
+<a class="hover:text-primary transition-colors" href="#">Racing</a>
+<a class="hover:text-primary transition-colors" href="#">Leaderboards</a>
+<a class="hover:text-primary transition-colors" href="#">Marketplace</a>
+<a class="text-primary font-bold" href="#">Profile</a>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-card-dark rounded-full border border-gray-200 dark:border-gray-700 shadow-sm text-xs font-mono">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+<span>8xF3...9d2A</span>
+</div>
+<button class="bg-secondary text-white dark:bg-white dark:text-secondary px-5 py-2 rounded-full font-bold text-sm hover:bg-opacity-90 transition">
+                Start Race
+            </button>
+</div>
+</nav>
+<main class="relative z-10 max-w-6xl mx-auto px-6 py-12">
+<div class="flex flex-col md:flex-row gap-8 items-start mb-16">
+<div class="flex-shrink-0 relative group">
+<div class="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white dark:border-card-dark shadow-xl overflow-hidden relative z-10">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANAF1cYNCBnhRMMIoHvt_YEawYn2bKaShGMcdkubO6Ff3666J5oMqegMrkRZs2abMBPpGfNaY402XRXLvl6w7cwr6Kc1Gl35DWLb-3Dr3WRxSeDgV18Wos6VwgOkgBg0-kiBteKAycl1YWX8ksrxcGxFz7LAtYMn1N6J4GQqbmhlEN7Vr0Bnxurja1lnI-l0f9nQSjanO5JO65Q1H94BiPj8hoxomgwtXQqU9og_lj7FHY_7wZlHOcG3uUyU5NwT17T2JKuhVLEjU"/>
+</div>
+<div class="absolute bottom-2 right-2 z-20 w-6 h-6 bg-green-500 border-4 border-white dark:border-card-dark rounded-full"></div>
+<div class="absolute inset-0 rounded-full border-2 border-primary scale-110 opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"></div>
+</div>
+<div class="flex-grow pt-4">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-2">
+<div>
+<h1 class="font-display font-bold text-4xl md:text-5xl mb-1">TurboTyper_99</h1>
+<p class="text-muted-light dark:text-muted-dark font-mono text-sm flex items-center gap-2">
+<span class="material-icons-outlined text-base">verified</span>
+                            Professional Racer
+                            <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                            Joined March 2024
+                        </p>
+</div>
+<div class="flex gap-3">
+<button class="p-2 rounded-full bg-white dark:bg-card-dark shadow-sm hover:text-primary transition-colors border border-gray-100 dark:border-gray-700">
+<span class="material-icons-outlined">share</span>
+</button>
+<button class="p-2 rounded-full bg-white dark:bg-card-dark shadow-sm hover:text-primary transition-colors border border-gray-100 dark:border-gray-700">
+<span class="material-icons-outlined">settings</span>
+</button>
+</div>
+</div>
+<p class="text-base text-gray-600 dark:text-gray-300 max-w-2xl mt-4 leading-relaxed">
+                    Building the fastest fingers on Solana. 🚀 Full-time racer, part-time keyboard collector. Currently holding the regional record for 60s sprint. Let's race!
+                </p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+<div class="bg-white dark:bg-card-dark p-8 rounded-2xl shadow-soft hover:shadow-lg transition-shadow border-l-4 border-primary relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-icons-outlined text-8xl text-primary">speed</span>
+</div>
+<h3 class="text-muted-light dark:text-muted-dark font-medium text-sm uppercase tracking-wider mb-2">Avg Speed (WPM)</h3>
+<div class="flex items-baseline gap-2">
+<span class="font-display font-bold text-6xl text-gray-900 dark:text-white">142</span>
+<span class="text-green-500 font-bold text-sm flex items-center">
+<span class="material-icons-outlined text-base">arrow_upward</span> 2.4%
+                    </span>
+</div>
+<div class="mt-4 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[85%] rounded-full"></div>
+</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-2">Top 1% of Global Racers</p>
+</div>
+<div class="bg-white dark:bg-card-dark p-8 rounded-2xl shadow-soft hover:shadow-lg transition-shadow border-l-4 border-accent-teal relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-icons-outlined text-8xl text-accent-teal">savings</span>
+</div>
+<h3 class="text-muted-light dark:text-muted-dark font-medium text-sm uppercase tracking-wider mb-2">Total Earned</h3>
+<div class="flex items-baseline gap-1">
+<span class="font-display font-bold text-6xl text-gray-900 dark:text-white">845</span>
+<span class="font-display font-bold text-2xl text-accent-teal">SOL</span>
+</div>
+<div class="mt-4 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+<div class="h-full bg-accent-teal w-[60%] rounded-full"></div>
+</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-2">~$120,400 USD Est.</p>
+</div>
+<div class="bg-secondary dark:bg-gray-800 p-8 rounded-2xl shadow-soft hover:shadow-lg transition-shadow relative overflow-hidden text-white">
+<div class="absolute -right-6 -bottom-6 w-32 h-32 bg-primary opacity-20 rounded-full blur-2xl"></div>
+<h3 class="text-gray-300 font-medium text-sm uppercase tracking-wider mb-2">Win Rate</h3>
+<div class="flex items-baseline gap-2">
+<span class="font-display font-bold text-6xl text-white">78<span class="text-3xl text-primary">%</span></span>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-6">
+<div>
+<div class="text-xs text-gray-400 mb-1">Races Won</div>
+<div class="font-bold text-xl">1,204</div>
+</div>
+<div>
+<div class="text-xs text-gray-400 mb-1">Total Races</div>
+<div class="font-bold text-xl">1,542</div>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<div class="lg:col-span-4 space-y-8">
+<div class="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-soft border border-gray-100 dark:border-gray-800">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-display font-bold text-xl">Trophy Case</h3>
+<a class="text-sm text-primary font-medium hover:underline" href="#">View All</a>
+</div>
+<div class="grid grid-cols-3 gap-3">
+<div class="aspect-square rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/30 dark:to-teal-800/30 flex flex-col items-center justify-center p-2 border border-teal-200 dark:border-teal-700 group cursor-pointer hover:scale-105 transition-transform">
+<span class="material-icons-outlined text-3xl text-accent-teal mb-1">emoji_events</span>
+<span class="text-[10px] font-bold uppercase text-center text-teal-800 dark:text-teal-200 leading-tight">Weekly Champ</span>
+</div>
+<div class="aspect-square rounded-xl bg-gradient-to-br from-lime-50 to-lime-100 dark:from-lime-900/30 dark:to-lime-800/30 flex flex-col items-center justify-center p-2 border border-lime-200 dark:border-lime-700 group cursor-pointer hover:scale-105 transition-transform">
+<span class="material-icons-outlined text-3xl text-primary mb-1">bolt</span>
+<span class="text-[10px] font-bold uppercase text-center text-lime-800 dark:text-lime-200 leading-tight">Speed Demon</span>
+</div>
+<div class="aspect-square rounded-xl bg-gray-50 dark:bg-gray-800 flex flex-col items-center justify-center p-2 border border-gray-200 dark:border-gray-700 group cursor-pointer hover:scale-105 transition-transform opacity-75 grayscale hover:grayscale-0">
+<span class="material-icons-outlined text-3xl text-purple-500 mb-1">diamond</span>
+<span class="text-[10px] font-bold uppercase text-center text-gray-600 dark:text-gray-400 leading-tight">Grand Prix</span>
+</div>
+<div class="aspect-square rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/30 dark:to-pink-800/30 flex flex-col items-center justify-center p-2 border border-pink-200 dark:border-pink-700 group cursor-pointer hover:scale-105 transition-transform">
+<span class="material-icons-outlined text-3xl text-pink-500 mb-1">local_fire_department</span>
+<span class="text-[10px] font-bold uppercase text-center text-pink-800 dark:text-pink-200 leading-tight">Streak 50</span>
+</div>
+<div class="aspect-square rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 flex flex-col items-center justify-center p-2 border border-blue-200 dark:border-blue-700 group cursor-pointer hover:scale-105 transition-transform">
+<span class="material-icons-outlined text-3xl text-blue-500 mb-1">verified_user</span>
+<span class="text-[10px] font-bold uppercase text-center text-blue-800 dark:text-blue-200 leading-tight">Veteran</span>
+</div>
+<div class="aspect-square rounded-xl bg-gray-100 dark:bg-gray-800/50 flex flex-col items-center justify-center p-2 border border-dashed border-gray-300 dark:border-gray-700 text-gray-400">
+<span class="material-icons-outlined text-xl">lock</span>
+</div>
+</div>
+</div>
+<div class="bg-secondary text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+<div class="relative z-10">
+<h3 class="font-display font-bold text-lg mb-4 text-primary">Current Setup</h3>
+<div class="space-y-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center">
+<span class="material-icons-outlined text-gray-300">keyboard</span>
+</div>
+<div>
+<div class="text-sm font-bold">CyberBoard R2</div>
+<div class="text-xs text-gray-400">Mechanical • Linear Switches</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center">
+<span class="material-icons-outlined text-gray-300">palette</span>
+</div>
+<div>
+<div class="text-sm font-bold">Neon Nights</div>
+<div class="text-xs text-gray-400">Keycap Set • Rare NFT</div>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute right-[-20px] bottom-[-20px] text-gray-800 opacity-20">
+<span class="material-icons-outlined text-[150px]">sports_esports</span>
+</div>
+</div>
+</div>
+<div class="lg:col-span-8">
+<div class="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-soft mb-6 border border-gray-100 dark:border-gray-800">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+<img alt="Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQMbSgyN_Aho4UO63THoZxq3L-njWVvWpPRkuVwgWFYDFuy9NlTnPmO4eYo2uPECNgVr2CvX4Wwk7XUcpfKKSjhQZLIZENQLHmRrwU4wxErm73lJNTur15wnxg2qA9hbn3X2Cyp1TcCSGBCvSL7sM6l3NQdyQ4IgJzH0DW_RheNS1-rdKBelEIPYlrmxvSKmgVuxxHVrgfFeXLJkbmW5X4L7oZ67Yyp5-J4F14TIZzJSYnuPp7UUzBctOiYzU60lzb6P_ztPVP064"/>
+</div>
+<div class="flex-grow">
+<textarea class="w-full bg-transparent border-none focus:ring-0 text-gray-700 dark:text-gray-200 placeholder-gray-400 resize-none h-16" placeholder="Share your latest race results..."></textarea>
+<div class="flex justify-between items-center mt-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+<div class="flex gap-2 text-primary">
+<button class="hover:bg-gray-50 dark:hover:bg-gray-800 p-1 rounded transition"><span class="material-icons-outlined text-lg">image</span></button>
+<button class="hover:bg-gray-50 dark:hover:bg-gray-800 p-1 rounded transition"><span class="material-icons-outlined text-lg">poll</span></button>
+<button class="hover:bg-gray-50 dark:hover:bg-gray-800 p-1 rounded transition"><span class="material-icons-outlined text-lg">emoji_emotions</span></button>
+</div>
+<button class="bg-secondary text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-opacity-90">Post</button>
+</div>
+</div>
+</div>
+</div>
+<div class="flex gap-6 mb-6 border-b border-gray-200 dark:border-gray-800 pb-2 overflow-x-auto">
+<button class="font-bold text-secondary dark:text-white border-b-2 border-primary pb-2 px-1">Feed</button>
+<button class="font-medium text-muted-light dark:text-muted-dark hover:text-secondary dark:hover:text-white pb-2 px-1 transition-colors">Highlights</button>
+<button class="font-medium text-muted-light dark:text-muted-dark hover:text-secondary dark:hover:text-white pb-2 px-1 transition-colors">Race Logs</button>
+</div>
+<div class="space-y-6">
+<div class="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-soft border border-gray-100 dark:border-gray-800">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<img alt="User" class="w-10 h-10 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP0hSR7OKBoIgvBICI4851oFes7kZO9cM0YiCuoE4eTR1BL2sdOHHm6VxyT7Cs6cctAWaX5wd4YV00z9GBtLme1W6BbR9ws2nZ9YDeQv-8CDm9nLlRpDQNPvn36XHc0KdGQ8XE3II0zWWngODGvHiqStYc2I5tgz8WQq_SHGNRUedZ5sRaQmAIRunHtNPq0psYl-DJKcBX-Of3GWzcSh7c-iHT6lEFLYUS4zWbjbkkvnu-YD1RaVa0XUREC2iyAMe0fvx1d5RJYTI"/>
+<div>
+<h4 class="font-bold text-sm">TurboTyper_99</h4>
+<p class="text-xs text-muted-light dark:text-muted-dark">2 hours ago • <span class="text-primary font-medium">Race Result</span></p>
+</div>
+</div>
+<button class="text-muted-light hover:text-secondary"><span class="material-icons-outlined">more_horiz</span></button>
+</div>
+<p class="mb-4 text-gray-800 dark:text-gray-200 text-sm">Just smashed my personal best on the "Quantum Physics" text pack! ⚛️ Still shaking.</p>
+<div class="bg-background-light dark:bg-background-dark p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-4 mb-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-secondary font-bold text-xl">
+                                    #1
+                                </div>
+<div>
+<div class="text-xs uppercase text-muted-light dark:text-muted-dark font-bold">WPM</div>
+<div class="text-2xl font-display font-bold">156</div>
+</div>
+<div class="w-px h-8 bg-gray-300 dark:bg-gray-600"></div>
+<div>
+<div class="text-xs uppercase text-muted-light dark:text-muted-dark font-bold">Accuracy</div>
+<div class="text-2xl font-display font-bold text-green-500">99.8%</div>
+</div>
+</div>
+<div class="flex items-center gap-2 text-sm font-mono bg-white dark:bg-gray-800 px-3 py-1 rounded border border-gray-200 dark:border-gray-700">
+<span class="text-green-600 font-bold">+0.4 SOL</span> Won
+                            </div>
+</div>
+<div class="flex items-center gap-6 text-muted-light dark:text-muted-dark text-sm">
+<button class="flex items-center gap-2 hover:text-pink-500 transition-colors"><span class="material-icons-outlined text-lg">favorite_border</span> 42</button>
+<button class="flex items-center gap-2 hover:text-blue-500 transition-colors"><span class="material-icons-outlined text-lg">chat_bubble_outline</span> 8</button>
+<button class="flex items-center gap-2 hover:text-green-500 transition-colors"><span class="material-icons-outlined text-lg">repeat</span> 3</button>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-soft border border-gray-100 dark:border-gray-800">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<img alt="User" class="w-10 h-10 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9u6aXb7HKB92YmuNGmAQyjp3UgVKJdD4SZMtOicDa0axC7u5Cmmvpzx9Zy8JCqidI3VXvj5DNxnHB9U9vp9JtRJREgAWJyQGcyY5_RWjWuOZHO1EisRD83fioY9dURMvK7WQ6Q9dkJNbYWJhrGWw_DAKDbIsj5lxsAN8KztmlArrllFHLStnJQZrsxQ_tYcpOGJjzJHx75_g-3B-JRfYNKcZ1UMBcw9wvcU9fujWCaRHHDBIzgGsIk8lnYKQH5tq_vGcJ3_hFi-U"/>
+<div>
+<h4 class="font-bold text-sm">TurboTyper_99</h4>
+<p class="text-xs text-muted-light dark:text-muted-dark">Yesterday</p>
+</div>
+</div>
+<button class="text-muted-light hover:text-secondary"><span class="material-icons-outlined">more_horiz</span></button>
+</div>
+<p class="mb-4 text-gray-800 dark:text-gray-200 text-sm">Looking for a clan for the upcoming Summer Sprint tournament. Anyone recruiting? I can consistently hit 140+ WPM on burst rounds.</p>
+<div class="flex items-center gap-6 text-muted-light dark:text-muted-dark text-sm">
+<button class="flex items-center gap-2 hover:text-pink-500 transition-colors"><span class="material-icons-outlined text-lg">favorite_border</span> 15</button>
+<button class="flex items-center gap-2 hover:text-blue-500 transition-colors"><span class="material-icons-outlined text-lg">chat_bubble_outline</span> 12</button>
+<button class="flex items-center gap-2 hover:text-green-500 transition-colors"><span class="material-icons-outlined text-lg">repeat</span> 1</button>
+</div>
+</div>
+</div>
+<div class="mt-8 text-center">
+<button class="text-sm font-medium text-gray-500 hover:text-primary transition-colors">Load more activity...</button>
+</div>
+</div>
+</div>
+</main>
+<footer class="mt-20 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-card-dark py-12">
+<div class="max-w-6xl mx-auto px-6 text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-6">
+<div>
+<div class="flex items-center justify-center md:justify-start gap-2 mb-2">
+<span class="font-display font-bold text-lg">KeySocial</span>
+</div>
+<p class="text-sm text-gray-500">The premier on-chain typing esport.</p>
+</div>
+<div class="flex gap-6 text-sm text-gray-500 font-medium">
+<a class="hover:text-primary" href="#">Privacy</a>
+<a class="hover:text-primary" href="#">Terms</a>
+<a class="hover:text-primary" href="#">Docs</a>
+</div>
+</div>
+</footer>
+
+</body></html>
