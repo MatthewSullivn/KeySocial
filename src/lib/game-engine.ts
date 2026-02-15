@@ -9,6 +9,8 @@ export interface WordPrompt {
   timestamp: number;
 }
 
+export type CharState = "correct" | "incorrect" | "untyped";
+
 export interface PlayerState {
   id: string;
   username: string;
@@ -24,6 +26,7 @@ export interface PlayerState {
   wpm: number;
   currentWordProgress: string; // characters typed so far for current word
   awaitingSpace: boolean; // require SPACE to commit the word
+  charStates: CharState[]; // per-character correct/incorrect/untyped for current word
 }
 
 export interface GameConfig {
@@ -101,6 +104,7 @@ export function createPlayerState(id: string, username: string): PlayerState {
     wpm: 0,
     currentWordProgress: "",
     awaitingSpace: false,
+    charStates: [],
   };
 }
 
@@ -125,19 +129,34 @@ export function processKeyPress(
   startTime: number
 ): { player: PlayerState; correct: boolean; wordCompleted: boolean } {
   const updatedPlayer = { ...player };
-  updatedPlayer.totalHits += 1;
+  const charStates: CharState[] =
+    player.charStates.length === currentWord.length
+      ? [...player.charStates]
+      : Array(currentWord.length).fill("untyped") as CharState[];
 
-  // If the word is fully typed, require SPACE to commit it.
+  // ── Backspace ──
+  if (pressedKey === "Backspace") {
+    if (updatedPlayer.currentWordProgress.length > 0) {
+      const idx = updatedPlayer.currentWordProgress.length - 1;
+      charStates[idx] = "untyped";
+      updatedPlayer.currentWordProgress = updatedPlayer.currentWordProgress.slice(0, -1);
+      updatedPlayer.awaitingSpace = false;
+    }
+    updatedPlayer.charStates = charStates;
+    return { player: updatedPlayer, correct: true, wordCompleted: false };
+  }
+
+  // ── Awaiting SPACE to commit word ──
   if (updatedPlayer.awaitingSpace) {
+    updatedPlayer.totalHits += 1;
     if (pressedKey === " ") {
-      updatedPlayer.correctHits += 1; // count the correct SPACE
+      updatedPlayer.correctHits += 1;
       updatedPlayer.awaitingSpace = false;
       updatedPlayer.currentWordProgress = "";
+      updatedPlayer.charStates = [];
 
-      // Commit word
       updatedPlayer.streak += 1;
       updatedPlayer.bestStreak = Math.max(updatedPlayer.bestStreak, updatedPlayer.streak);
-
       updatedPlayer.progress = Math.min(100, (updatedPlayer.streak / trackLength) * 100);
 
       const elapsedMinutes = (Date.now() - startTime) / 60000;
@@ -154,54 +173,56 @@ export function processKeyPress(
       updatedPlayer.accuracy = Math.round(
         (updatedPlayer.correctHits / updatedPlayer.totalHits) * 100
       );
-
       return { player: updatedPlayer, correct: true, wordCompleted: true };
     }
 
-    // Pressed something else instead of SPACE — reset the word
+    // Wrong key while awaiting space — count mistake but don't reset
     updatedPlayer.mistakes += 1;
-    updatedPlayer.awaitingSpace = false;
-    updatedPlayer.currentWordProgress = "";
     updatedPlayer.accuracy = Math.round(
       (updatedPlayer.correctHits / updatedPlayer.totalHits) * 100
     );
     return { player: updatedPlayer, correct: false, wordCompleted: false };
   }
 
-  // Normal typing (characters)
-  const expectedChar = currentWord[updatedPlayer.currentWordProgress.length];
-  if (pressedKey === expectedChar) {
-    updatedPlayer.correctHits += 1;
-    updatedPlayer.currentWordProgress += pressedKey;
-
-    // If we just finished the word, wait for SPACE
-    if (updatedPlayer.currentWordProgress === currentWord) {
-      updatedPlayer.awaitingSpace = true;
-    }
-
-    updatedPlayer.progress = Math.min(100, (updatedPlayer.streak / trackLength) * 100);
-
-    const elapsedMinutes = (Date.now() - startTime) / 60000;
-    if (elapsedMinutes > 0) {
-      updatedPlayer.wpm = Math.round(updatedPlayer.correctHits / 5 / elapsedMinutes);
-      updatedPlayer.speed = updatedPlayer.wpm;
-    }
-
-    updatedPlayer.accuracy = Math.round(
-      (updatedPlayer.correctHits / updatedPlayer.totalHits) * 100
-    );
-
-    return { player: updatedPlayer, correct: true, wordCompleted: false };
+  // ── Normal character typing ──
+  const currentIdx = updatedPlayer.currentWordProgress.length;
+  if (currentIdx >= currentWord.length) {
+    return { player: updatedPlayer, correct: false, wordCompleted: false };
   }
 
-  // Mistake — reset word progress so they have to retype
-  updatedPlayer.mistakes += 1;
-  updatedPlayer.awaitingSpace = false;
-  updatedPlayer.currentWordProgress = "";
+  const expectedChar = currentWord[currentIdx];
+  updatedPlayer.totalHits += 1;
+  const isCorrect = pressedKey === expectedChar;
+
+  if (isCorrect) {
+    updatedPlayer.correctHits += 1;
+    charStates[currentIdx] = "correct";
+  } else {
+    updatedPlayer.mistakes += 1;
+    charStates[currentIdx] = "incorrect";
+  }
+
+  // Always move forward
+  updatedPlayer.currentWordProgress += pressedKey;
+  updatedPlayer.charStates = charStates;
+
+  // If all characters typed, wait for SPACE
+  if (updatedPlayer.currentWordProgress.length >= currentWord.length) {
+    updatedPlayer.awaitingSpace = true;
+  }
+
+  // Update stats
+  updatedPlayer.progress = Math.min(100, (updatedPlayer.streak / trackLength) * 100);
+  const elapsedMinutes = (Date.now() - startTime) / 60000;
+  if (elapsedMinutes > 0) {
+    updatedPlayer.wpm = Math.round(updatedPlayer.correctHits / 5 / elapsedMinutes);
+    updatedPlayer.speed = updatedPlayer.wpm;
+  }
   updatedPlayer.accuracy = Math.round(
     (updatedPlayer.correctHits / updatedPlayer.totalHits) * 100
   );
-  return { player: updatedPlayer, correct: false, wordCompleted: false };
+
+  return { player: updatedPlayer, correct: isCorrect, wordCompleted: false };
 }
 
 // AI Opponent logic

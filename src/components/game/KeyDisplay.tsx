@@ -1,19 +1,21 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { WordPrompt } from "@/lib/game-engine";
+import type { WordPrompt, CharState } from "@/lib/game-engine";
 
 interface KeyDisplayProps {
   currentWord: WordPrompt | null;
   upcomingWords: WordPrompt[];
   currentProgress: string;
+  charStates: CharState[];
+  awaitingSpace: boolean;
   lastResult: "correct" | "wrong" | null;
   gameActive: boolean;
   wordHistory: Array<{ word: string; correct: boolean }>;
 }
 
 export default function KeyDisplay(props: KeyDisplayProps) {
-  const { currentWord, upcomingWords, currentProgress, gameActive, wordHistory } = props;
+  const { currentWord, upcomingWords, currentProgress, charStates, awaitingSpace, gameActive, wordHistory } = props;
 
   if (!currentWord || !gameActive) {
     return (
@@ -57,30 +59,38 @@ export default function KeyDisplay(props: KeyDisplayProps) {
             const isUpcoming = wordItem.status === 'upcoming';
 
             if (isCurrentWord) {
+              const states: CharState[] =
+                charStates.length === wordItem.word.length
+                  ? charStates
+                  : Array(wordItem.word.length).fill("untyped") as CharState[];
+
               return (
                 <span key={i} className="relative inline-flex">
                   {wordItem.word.split('').map((char, charIndex) => {
-                    const isTyped = charIndex < currentProgress.length;
-                    const isCurrent = charIndex === currentProgress.length;
-                    const isCorrect = isTyped && currentProgress[charIndex] === char;
+                    const state = states[charIndex];
+                    const isCursorHere = charIndex === currentProgress.length && !awaitingSpace;
 
                     return (
                       <span
                         key={charIndex}
                         className={cn(
-                          "transition-colors duration-75",
-                          isTyped && isCorrect && "text-primary",
-                          isTyped && !isCorrect && "text-red-400",
-                          !isTyped &&
-                            isCurrent &&
-                            "text-black dark:text-white bg-primary/30 rounded px-0.5 -mx-0.5 border-b-2 border-primary typing-cursor",
-                          !isTyped && !isCurrent && "text-slate-500"
+                          "transition-colors duration-75 relative",
+                          state === "correct" && "text-primary",
+                          state === "incorrect" && "text-red-400 bg-red-400/10 rounded",
+                          state === "untyped" && isCursorHere &&
+                            "text-black dark:text-white bg-primary/30 rounded px-0.5 -mx-0.5 border-b-2 border-primary animate-pulse",
+                          state === "untyped" && !isCursorHere && "text-slate-500"
                         )}
                       >
                         {char}
                       </span>
                     );
                   })}
+                  {awaitingSpace && (
+                    <span className="inline-flex items-center ml-1 text-primary animate-pulse font-bold text-lg">
+                      ␣
+                    </span>
+                  )}
                 </span>
               );
             }
@@ -91,7 +101,7 @@ export default function KeyDisplay(props: KeyDisplayProps) {
                   key={i}
                   className={cn(
                     "transition-colors",
-                    wordItem.correct ? "text-primary/60" : "text-red-400/60"
+                    wordItem.correct ? "text-primary/60" : "text-red-400/60 line-through decoration-red-400/40"
                   )}
                 >
                   {wordItem.word}
@@ -112,7 +122,8 @@ export default function KeyDisplay(props: KeyDisplayProps) {
       </div>
 
       <p className="text-sm text-slate-500 font-mono mt-2">
-        Type the word, then press SPACE
+        Type each character — press SPACE to advance to next word
+        <span className="ml-3 text-xs text-slate-400">( Backspace to go back )</span>
       </p>
     </div>
   );

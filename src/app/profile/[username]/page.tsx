@@ -33,6 +33,10 @@ export default function ProfilePage() {
   const [matchHistory, setMatchHistory] = useState<TapestryContent[]>([]);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [followersList, setFollowersList] = useState<TapestryProfile[]>([]);
+  const [followingList, setFollowingList] = useState<TapestryProfile[]>([]);
+  const [showFollowers, setShowFollowers] = useState(false);
+  const [showFollowing, setShowFollowing] = useState(false);
   const [stats, setStats] = useState({
     wins: 0,
     losses: 0,
@@ -57,11 +61,13 @@ export default function ProfilePage() {
       if (!p) return;
 
       const [followers, following] = await Promise.all([
-        getFollowers(p.id || p.username, 1, 0),
-        getFollowing(p.id || p.username, 1, 0),
+        getFollowers(p.id || p.username, 50, 0),
+        getFollowing(p.id || p.username, 50, 0),
       ]);
       setFollowerCount(p.socialCounts?.followers || followers.length);
       setFollowingCount(p.socialCounts?.following || following.length);
+      setFollowersList(followers);
+      setFollowingList(following);
 
       if (myProfile && !isOwnProfile) {
         const followingState = await checkFollowStatus(
@@ -137,6 +143,15 @@ export default function ProfilePage() {
     }
   }
 
+  function handleCopyWallet() {
+    if (!profile?.walletAddress) return;
+    navigator.clipboard.writeText(profile.walletAddress).then(() => {
+      toast.success("Wallet address copied!");
+    }).catch(() => {
+      toast.error("Failed to copy");
+    });
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark flex flex-col">
@@ -177,7 +192,6 @@ export default function ProfilePage() {
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-sans transition-colors duration-300 min-h-screen relative overflow-x-hidden">
-      {/* blobs */}
       <div className="blob-shape top-[-10%] left-[-5%] w-96 h-96 bg-primary opacity-30 blur-3xl rounded-full"></div>
       <div className="blob-shape bottom-[-10%] right-[-5%] w-[30rem] h-[30rem] bg-primary opacity-20 blur-3xl rounded-full"></div>
       <div className="blob-shape top-[20%] right-[10%] w-48 h-48 bg-accent-teal opacity-20 blur-3xl rounded-full"></div>
@@ -239,21 +253,81 @@ export default function ProfilePage() {
             )}
 
             <div className="mt-6 flex flex-wrap gap-4 text-sm">
-              <span className="inline-flex items-center gap-2 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 shadow-sm">
+              <button
+                type="button"
+                onClick={() => { setShowFollowers(true); setShowFollowing(false); }}
+                className="inline-flex items-center gap-2 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 shadow-sm hover:border-primary transition-colors cursor-pointer"
+              >
                 <span className="material-icons-outlined text-base">groups</span>
                 <b>{followerCount}</b> Followers
-              </span>
-              <span className="inline-flex items-center gap-2 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 shadow-sm">
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowFollowing(true); setShowFollowers(false); }}
+                className="inline-flex items-center gap-2 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 shadow-sm hover:border-primary transition-colors cursor-pointer"
+              >
                 <span className="material-icons-outlined text-base">group_add</span>
                 <b>{followingCount}</b> Following
-              </span>
-              <span className="inline-flex items-center gap-2 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 shadow-sm font-mono">
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyWallet}
+                className="inline-flex items-center gap-2 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 shadow-sm font-mono hover:border-primary transition-colors cursor-pointer group"
+                title="Click to copy full address"
+              >
                 <span className="material-icons-outlined text-base">account_balance_wallet</span>
                 {profile.walletAddress ? shortenAddress(profile.walletAddress) : "—"}
-              </span>
+                <span className="material-icons text-sm text-slate-400 group-hover:text-primary transition-colors">content_copy</span>
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Followers / Following modal */}
+        {(showFollowers || showFollowing) && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setShowFollowers(false); setShowFollowing(false); }}>
+            <div className="bg-white dark:bg-card-dark rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4 max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+                <h3 className="font-display font-bold text-lg">
+                  {showFollowers ? "Followers" : "Following"}
+                  <span className="ml-2 text-sm font-normal text-muted-light dark:text-muted-dark">
+                    ({showFollowers ? followerCount : followingCount})
+                  </span>
+                </h3>
+                <button type="button" onClick={() => { setShowFollowers(false); setShowFollowing(false); }} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                  <span className="material-icons">close</span>
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1 p-4">
+                {(showFollowers ? followersList : followingList).length === 0 ? (
+                  <p className="text-center text-muted-light dark:text-muted-dark py-8">
+                    {showFollowers ? "No followers yet" : "Not following anyone yet"}
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {(showFollowers ? followersList : followingList).map((u) => (
+                      <Link
+                        key={u.id || u.username}
+                        href={`/profile/${u.username}`}
+                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => { setShowFollowers(false); setShowFollowing(false); }}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-black font-bold shrink-0">
+                          {u.username?.[0]?.toUpperCase() || "?"}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-sm truncate">{u.username}</div>
+                          {u.bio && <p className="text-xs text-slate-500 truncate">{u.bio}</p>}
+                        </div>
+                        <span className="material-icons text-slate-400 text-lg">chevron_right</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">

@@ -110,6 +110,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.gameState !== "racing" || !state.currentWord || !state.startTime) return;
     if (state.player.isFinished) return;
 
+    // Capture charStates before processing (used to determine word correctness on completion)
+    const prevCharStates = state.player.charStates;
+
     const result = processKeyPress(
       state.player,
       key,
@@ -124,9 +127,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const nextWord = newUpcoming.shift()!;
       newUpcoming.push(generateNextWord(state.config.difficulty));
 
+      const wordCorrect = prevCharStates.length > 0 && prevCharStates.every((s) => s === "correct");
+
       const newHistory = [
         ...state.wordHistory,
-        { word: state.currentWord.word, correct: true },
+        { word: state.currentWord.word, correct: wordCorrect },
       ];
 
       set({
@@ -136,7 +141,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         wordHistory: newHistory,
       });
     } else {
-      // Just update player state (for mistakes or partial word progress)
       set({
         player: result.player,
       });

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useState } from "react";
+import { Suspense, useEffect, useCallback, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useGameStore } from "@/store/game-store";
 import { useUserStore } from "@/store/user-store";
 import GameSetup from "@/components/game/GameSetup";
@@ -12,6 +13,16 @@ import { toast } from "sonner";
 import AppHeader from "@/components/layout/AppHeader";
 
 export default function GamePage() {
+  return (
+    <Suspense>
+      <GamePageInner />
+    </Suspense>
+  );
+}
+
+function GamePageInner() {
+  const searchParams = useSearchParams();
+  const initialDifficulty = searchParams.get("difficulty") || undefined;
   const {
     gameState,
     config,
@@ -44,11 +55,16 @@ export default function GamePage() {
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (gameState !== "racing") return;
-      // Ignore modifier keys and special keys
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key.length !== 1) return;
+      if (e.key !== "Backspace" && e.key.length !== 1) return;
 
       e.preventDefault();
+
+      // Backspace — just send it, no correct/wrong feedback
+      if (e.key === "Backspace") {
+        handleKeyPress("Backspace");
+        return;
+      }
 
       const prevCorrectHits = useGameStore.getState().player.correctHits;
       handleKeyPress(e.key);
@@ -102,10 +118,18 @@ export default function GamePage() {
     };
   }, [gameState, updateOpponent]);
 
-  // Record match result on chain
+  // Record match result on chain + save best WPM
   useEffect(() => {
     if (gameState === "finished" && matchResult && profile) {
       recordMatchOnChain();
+    }
+    if (gameState === "finished" && player.wpm > 0) {
+      try {
+        const prev = parseInt(localStorage.getItem("ks_best_wpm") || "0", 10);
+        if (player.wpm > prev) {
+          localStorage.setItem("ks_best_wpm", String(player.wpm));
+        }
+      } catch {}
     }
   }, [gameState, matchResult]);
 
@@ -159,7 +183,7 @@ export default function GamePage() {
         </div>
         <AppHeader />
         <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-4">
-          <GameSetup onStart={handleStartFromSetup} />
+          <GameSetup onStart={handleStartFromSetup} initialDifficulty={initialDifficulty} />
         </main>
       </div>
     );
@@ -247,6 +271,8 @@ export default function GamePage() {
             currentWord={currentWord}
             upcomingWords={upcomingWords}
             currentProgress={player.currentWordProgress}
+            charStates={player.charStates}
+            awaitingSpace={player.awaitingSpace}
             lastResult={lastResult}
             gameActive={gameState === "racing"}
             wordHistory={wordHistory}

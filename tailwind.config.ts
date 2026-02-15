@@ -17,6 +17,7 @@ const config: Config = {
         "accent-lime": "#D9ED5F",
         "accent-pink": "#F45D86",
         "accent-purple": "#6B63F6",
+        "accent-blue": "#5D5DF8",
         "accent-teal": "#4FD1C5",
         accent: "#D6EF5B", // feed lime token
         "accent-dark": "#b0c92b",
@@ -118,6 +119,11 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-10px)" },
         },
+      },
+      boxShadow: {
+        pop: "4px 4px 0px 0px rgba(0,0,0,1)",
+        "pop-sm": "2px 2px 0px 0px rgba(0,0,0,1)",
+        "pop-hover": "6px 6px 0px 0px rgba(0,0,0,1)",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

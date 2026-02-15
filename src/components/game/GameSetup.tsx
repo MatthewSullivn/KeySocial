@@ -18,6 +18,7 @@ const WalletMultiButton = dynamic(
 
 interface GameSetupProps {
   onStart: () => void;
+  initialDifficulty?: string;
 }
 
 const difficulties = [
@@ -61,12 +62,15 @@ const difficulties = [
 
 const stakeOptions = [0, 0.01, 0.05, 0.1, 0.25, 0.5];
 
-export default function GameSetup({ onStart }: GameSetupProps) {
+export default function GameSetup({ onStart, initialDifficulty }: GameSetupProps) {
   const { connected } = useWallet();
   const { profile, walletAddress } = useUserStore();
   const { initGame } = useGameStore();
 
-  const [difficulty, setDifficulty] = useState("medium");
+  const validDiffs = ["easy", "medium", "hard", "insane"];
+  const [difficulty, setDifficulty] = useState(
+    initialDifficulty && validDiffs.includes(initialDifficulty) ? initialDifficulty : "medium"
+  );
   const [stakeAmount, setStakeAmount] = useState(0);
 
   function handleStart() {

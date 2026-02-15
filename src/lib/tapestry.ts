@@ -1,6 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_TAPESTRY_API_URL || "https://api.usetapestry.dev/api/v1";
 const SERVER_API_KEY = process.env.TAPESTRY_API_KEY || process.env.NEXT_PUBLIC_TAPESTRY_API_KEY || "";
 const NAMESPACE = process.env.NEXT_PUBLIC_APP_NAMESPACE || "keysocial";
+const CONTENT_NAMESPACE = "primitives";
 
 interface TapestryProfile {
   id: string;
@@ -237,7 +238,8 @@ export async function getFollowers(
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return data.followers || data || [];
+  const list = data.followers ?? data.profiles ?? data;
+  return Array.isArray(list) ? list : [];
 }
 
 export async function getFollowing(
@@ -250,7 +252,8 @@ export async function getFollowing(
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return data.following || data || [];
+  const list = data.following ?? data.profiles ?? data;
+  return Array.isArray(list) ? list : [];
 }
 
 // ========================
@@ -263,20 +266,30 @@ export async function createContent(
   contentType: string = "text",
   customProperties: { key: string; value: string }[] = []
 ): Promise<TapestryContent> {
+  const id = `ks-${profileId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const properties = customProperties.length > 0
+    ? customProperties
+    : [{ key: "source", value: "keysocial" }];
+
   const res = await tapestryFetch("/contents/findOrCreate", {
     method: "POST",
     body: JSON.stringify({
+      id,
       profileId,
       content,
       contentType,
-      customProperties,
+      properties,
       blockchain: "SOLANA",
       execution: "FAST_UNCONFIRMED",
-      namespace: NAMESPACE,
+      namespace: CONTENT_NAMESPACE,
     }),
   });
 
-  if (!res.ok) throw new Error("Failed to create content");
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    throw new Error(`Failed to create content: ${errText}`);
+  }
   return res.json();
 }
 
@@ -321,11 +334,45 @@ export async function getContents(
   offset = 0
 ): Promise<TapestryContent[]> {
   const res = await tapestryFetch(
-    `/contents/?limit=${limit}&offset=${offset}&namespace=${NAMESPACE}`
+    `/contents?limit=${limit}&offset=${offset}&namespace=${CONTENT_NAMESPACE}`
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return data.contents || data || [];
+  const rawList = data.contents || data || [];
+
+  return rawList.map((item: Record<string, unknown>) => {
+    const c = (item.content || item) as Record<string, unknown>;
+    const ap = (item.authorProfile || {}) as Record<string, unknown>;
+    const sc = (item.socialCounts || {}) as Record<string, unknown>;
+
+    return {
+      id: (c.id as string) || "",
+      profileId: (c.creatorId || c.creator_user_id || ap.id || "") as string,
+      content: (c.content || c.drop_name || c.title || "") as string,
+      contentType: (c.contentType || c.type || "text") as string,
+      properties: (c.customProperties || c.properties || undefined) as Record<string, string> | undefined,
+      socialCounts: {
+        likes: (sc.likeCount || sc.likes || 0) as number,
+        comments: (sc.commentCount || sc.comments || 0) as number,
+      },
+      createdAt: c.created_at
+        ? typeof c.created_at === "number"
+          ? new Date(c.created_at as number).toISOString()
+          : String(c.created_at)
+        : undefined,
+      profile: ap.username
+        ? {
+            id: (ap.id as string) || "",
+            username: (ap.username as string) || "",
+            bio: (ap.bio as string) || "",
+            walletAddress: "",
+            namespace: (ap.namespace as string) || "",
+            image: (ap.image as string) || undefined,
+            blockchain: "SOLANA",
+          }
+        : undefined,
+    } as TapestryContent;
+  });
 }
 
 export async function getContentById(contentId: string): Promise<TapestryContent | null> {
