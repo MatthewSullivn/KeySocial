@@ -75,9 +75,15 @@ function aggregateMatches(
     }
   }
 
+  // Deduplicate matches with same winner+loser+WPM within 5 seconds
+  const seen = new Set<string>();
   for (const content of tapestryContents) {
     const props = content.properties || {};
     if (props.type !== "match_result") continue;
+    const ts = content.createdAt ? Math.floor(new Date(content.createdAt).getTime() / 5000) : "";
+    const key = `${props.winnerId}-${props.loserId}-${props.winnerWPM}-${props.loserWPM}-${ts}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     processMatch(
       props.winnerId,
       props.loserId,
@@ -133,9 +139,31 @@ export default function LeaderboardPage() {
       }
 
       // Filter out bot entries
-      const leaderboard = Array.from(playerMap.values()).filter(
+      const allEntries = Array.from(playerMap.values()).filter(
         (e) => !e.profileId.startsWith("ai-")
       );
+
+      // Merge entries with the same username (handles legacy "remote-opponent" IDs)
+      const byUsername = new Map<string, LeaderboardEntry>();
+      for (const e of allEntries) {
+        const existing = byUsername.get(e.username);
+        if (existing) {
+          existing.wins += e.wins;
+          existing.losses += e.losses;
+          existing.bestWPM = Math.max(existing.bestWPM, e.bestWPM);
+          const existTotal = existing.wins + existing.losses - e.wins - e.losses;
+          const newTotal = e.wins + e.losses;
+          existing.avgAccuracy = existTotal + newTotal > 0
+            ? Math.round((existing.avgAccuracy * existTotal + e.avgAccuracy * newTotal) / (existTotal + newTotal))
+            : 0;
+          existing.totalEarnings += e.totalEarnings;
+          // Prefer the real profile ID over "remote-opponent"
+          if (e.profileId !== "remote-opponent") existing.profileId = e.profileId;
+        } else {
+          byUsername.set(e.username, { ...e });
+        }
+      }
+      const leaderboard = Array.from(byUsername.values());
 
       setEntries(leaderboard);
     } catch (err) {
@@ -285,16 +313,19 @@ function PodiumBlock({
       : "border-accent-teal";
   const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
 
+  const Wrapper = entry ? Link : "div";
+  const wrapperProps = entry ? { href: `/profile/${entry.username}` } : {};
+
   return (
-    <div className={`podium-block w-full md:w-1/3 max-w-xs relative ${place === 1 ? "order-1 md:-order-none" : "order-2 md:order-none"}`}>
-      <div className="bg-white dark:bg-slate-800 border-2 border-black dark:border-slate-600 rounded-2xl p-6 mb-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative z-10 flex flex-col items-center">
+    <Wrapper {...(wrapperProps as Record<string, string>)} className={`podium-block w-full md:w-1/3 max-w-xs relative ${place === 1 ? "order-1 md:-order-none" : "order-2 md:order-none"} group`}>
+      <div className="bg-white dark:bg-slate-800 border-2 border-black dark:border-slate-600 rounded-2xl p-6 mb-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative z-10 flex flex-col items-center group-hover:border-primary transition-colors">
         {isMe && (
           <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">YOU</span>
         )}
         <div className={`w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 mb-3 border-2 ${ring} overflow-hidden flex items-center justify-center font-bold text-xl`}>
           {name[0]?.toUpperCase() || "?"}
         </div>
-        <h3 className="font-bold text-lg">{name}</h3>
+        <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{name}</h3>
         <div className="text-slate-500 dark:text-slate-400 text-sm font-mono mb-2">{handle}</div>
         {entry ? (
           <div className="text-center space-y-1">
@@ -308,6 +339,6 @@ function PodiumBlock({
       <div className="h-20 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-black dark:border-slate-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center">
         <span className="text-2xl font-extrabold">{medal} {place}</span>
       </div>
-    </div>
+    </Wrapper>
   );
 }

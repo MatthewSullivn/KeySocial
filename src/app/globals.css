@@ -222,15 +222,15 @@ body {
 
 /* Wallet adapter overrides */
 .wallet-adapter-button {
-  background: linear-gradient(135deg, #39FF14, #00f0ff) !important;
-  color: #0a0a0f !important;
+  background: #0f172a !important;
+  color: #ffffff !important;
   font-weight: 700 !important;
-  border-radius: 12px !important;
+  border-radius: 9999px !important;
   padding: 10px 24px !important;
   transition: all 0.2s !important;
 }
 .wallet-adapter-button:hover {
-  opacity: 0.9 !important;
+  background: #1e293b !important;
   transform: translateY(-1px) !important;
 }
 .wallet-adapter-modal-wrapper {

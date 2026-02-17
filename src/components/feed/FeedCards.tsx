@@ -160,12 +160,12 @@ export function FeedCardRaceResult({
   return (
     <div className="bg-surface-light dark:bg-surface-dark border-l-4 border-l-accent-pink border-y border-r border-y-slate-200 dark:border-y-slate-700 border-r-slate-200 dark:border-r-slate-700 rounded-xl p-5 shadow-sm pop-card">
       <div className="flex gap-4">
-        <div className="w-12 h-12 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0">
+        <Link href={`/profile/${author}`} className="w-12 h-12 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0 hover:ring-2 hover:ring-primary/50 transition-all">
           {author[0]?.toUpperCase()}
-        </div>
+        </Link>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <div><h4 className="font-display font-bold text-lg">{author}</h4><p className="text-xs text-slate-500">{timeAgo} • {raceId}</p></div>
+            <div><Link href={`/profile/${author}`} className="font-display font-bold text-lg hover:text-primary transition-colors">{author}</Link><p className="text-xs text-slate-500">{timeAgo} • {raceId}</p></div>
             <button type="button" className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-1"><span className="material-icons">more_horiz</span></button>
           </div>
           <p className="mt-3 text-slate-700 dark:text-slate-300 leading-relaxed">{content}</p>
@@ -209,16 +209,16 @@ export function FeedCardLobby({
   return (
     <div className="bg-surface-light dark:bg-surface-dark border-l-4 border-l-accent-blue border-y border-r border-y-slate-200 dark:border-y-slate-700 border-r-slate-200 dark:border-r-slate-700 rounded-xl p-5 shadow-sm pop-card">
       <div className="flex gap-4">
-        <div className="w-12 h-12 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0">
+        <Link href={`/profile/${author}`} className="w-12 h-12 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0 hover:ring-2 hover:ring-primary/50 transition-all">
           {author[0]?.toUpperCase()}
-        </div>
+        </Link>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <div><h4 className="font-display font-bold text-lg">{author}</h4><p className="text-xs text-slate-500">{timeAgo}</p></div>
+            <div><Link href={`/profile/${author}`} className="font-display font-bold text-lg hover:text-primary transition-colors">{author}</Link><p className="text-xs text-slate-500">{timeAgo}</p></div>
             <button type="button" className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-1"><span className="material-icons">more_horiz</span></button>
           </div>
           <p className="mt-3 text-slate-700 dark:text-slate-300">{content}</p>
-          <Link href="/match" className="mt-4 block bg-slate-900 dark:bg-slate-800 text-white rounded-xl p-4 hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors">
+          <Link href="/game?mode=create" className="mt-4 block bg-slate-900 dark:bg-slate-800 text-white rounded-xl p-4 hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="bg-accent-blue p-2 rounded-lg"><span className="material-icons text-white">casino</span></div>
@@ -259,18 +259,18 @@ export function FeedCardAnnouncement({
   return (
     <div className="bg-surface-light dark:bg-surface-dark border-l-4 border-l-primary border-y border-r border-y-slate-200 dark:border-y-slate-700 border-r-slate-200 dark:border-r-slate-700 rounded-xl p-5 shadow-sm pop-card">
       <div className="flex gap-4">
-        <div className="w-12 h-12 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0">
+        <Link href={`/profile/${author}`} className="w-12 h-12 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0 hover:ring-2 hover:ring-primary/50 transition-all">
           {author[0]?.toUpperCase()}
-        </div>
+        </Link>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <div><h4 className="font-display font-bold text-lg">{author}</h4><p className="text-xs text-slate-500">{timeAgo}</p></div>
+            <div><Link href={`/profile/${author}`} className="font-display font-bold text-lg hover:text-primary transition-colors">{author}</Link><p className="text-xs text-slate-500">{timeAgo}</p></div>
             <button type="button" className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-1"><span className="material-icons">more_horiz</span></button>
           </div>
           <p className="mt-3 text-slate-700 dark:text-slate-300">
             {hasHighlight ? <>{parts[0]}<span className="font-bold text-accent-blue bg-accent-blue/10 px-1 rounded">500 SOL</span>{parts[1]}</> : content}
           </p>
-          <Link href="/match" className="mt-4 block rounded-xl overflow-hidden border-2 border-slate-900 dark:border-slate-600 relative h-48 w-full group">
+          <Link href="/game?mode=create" className="mt-4 block rounded-xl overflow-hidden border-2 border-slate-900 dark:border-slate-600 relative h-48 w-full group">
             <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
               <div className="absolute inset-0 opacity-30 bg-gradient-to-br from-primary to-slate-900" />
               <span className="material-icons text-6xl text-primary opacity-50 group-hover:scale-110 transition-transform duration-500">emoji_events</span>
@@ -321,12 +321,12 @@ export function FeedCardPost({
   return (
     <div className={`bg-surface-light dark:bg-surface-dark border-l-4 ${borderColor} border-y border-r border-y-slate-200 dark:border-y-slate-700 border-r-slate-200 dark:border-r-slate-700 rounded-xl p-5 shadow-sm pop-card`}>
       <div className="flex gap-4">
-        <div className="w-12 h-12 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0">
+        <Link href={`/profile/${author}`} className="w-12 h-12 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-slate-900 font-bold shrink-0 hover:ring-2 hover:ring-primary/50 transition-all">
           {author[0]?.toUpperCase()}
-        </div>
+        </Link>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <div><h4 className="font-display font-bold text-lg">{author}</h4><p className="text-xs text-slate-500">{timeAgo}</p></div>
+            <div><Link href={`/profile/${author}`} className="font-display font-bold text-lg hover:text-primary transition-colors">{author}</Link><p className="text-xs text-slate-500">{timeAgo}</p></div>
             {onDelete ? (
               <PostMenu onDelete={onDelete} />
             ) : (

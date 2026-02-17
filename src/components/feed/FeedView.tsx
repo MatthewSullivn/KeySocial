@@ -61,11 +61,19 @@ function computeStatsFromContents(
   let wins = 0;
   let bestWpm = 0;
 
+  // Deduplicate matches with same winner+loser+WPM within 5 seconds
+  const seen = new Set<string>();
   for (const tc of contents) {
     if (tc.properties?.type !== "match_result") continue;
+    const pr = tc.properties;
+    const ts = tc.createdAt ? Math.floor(new Date(tc.createdAt).getTime() / 5000) : "";
+    const key = `${pr.winnerId}-${pr.loserId}-${pr.winnerWPM}-${pr.loserWPM}-${ts}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
     matchCount++;
-    const isWinner = tc.properties.winnerId === profileId;
-    const wpm = parseInt(isWinner ? tc.properties.winnerWPM : tc.properties.loserWPM, 10) || 0;
+    const isWinner = pr.winnerId === profileId;
+    const wpm = parseInt(isWinner ? pr.winnerWPM : pr.loserWPM, 10) || 0;
     totalWpm += wpm;
     if (isWinner) wins++;
     if (wpm > bestWpm) bestWpm = wpm;

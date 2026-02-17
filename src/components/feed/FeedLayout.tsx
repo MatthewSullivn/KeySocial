@@ -59,18 +59,18 @@ export function FeedLayout(props: FeedLayoutProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <aside className="hidden lg:block lg:col-span-3 space-y-6">
             <div className="bg-surface-light dark:bg-surface-dark border-2 border-slate-900 dark:border-slate-700 rounded-xl p-6 shadow-pop">
-              <div className="flex items-center gap-4 mb-4">
+              <Link href={profile ? `/profile/${profile.username}` : "#"} className="flex items-center gap-4 mb-4 group">
                 <div className="relative">
-                  <div className="w-14 h-14 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-black text-xl font-black shrink-0">
+                  <div className="w-14 h-14 rounded-lg border-2 border-slate-900 dark:border-slate-600 bg-primary flex items-center justify-center text-black text-xl font-black shrink-0 group-hover:ring-2 group-hover:ring-primary/50 transition-all">
                     {(profile?.username || "?")[0]?.toUpperCase()}
                   </div>
                   <div className="absolute -bottom-1 -right-1 bg-accent-teal w-4 h-4 rounded-full border-2 border-slate-900 dark:border-slate-700" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-display font-bold text-lg leading-tight truncate">{profile?.username || "Guest"}</h3>
+                  <h3 className="font-display font-bold text-lg leading-tight truncate group-hover:text-primary transition-colors">{profile?.username || "Guest"}</h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 truncate">@{profile?.username || "connect_wallet"}</p>
                 </div>
-              </div>
+              </Link>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg text-center border border-slate-200 dark:border-slate-700">
                   <span className="block text-2xl font-display font-bold text-slate-900 dark:text-white">{stats.wpmAvg || "—"}</span>
@@ -107,9 +107,9 @@ export function FeedLayout(props: FeedLayoutProps) {
                   )}
 
                   <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex gap-1">
-                      <button type="button" onClick={onFlexWPM} disabled={!profile || pendingType === "flex"} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-40 ${pendingType === "flex" ? "text-accent-pink bg-pink-50 dark:bg-pink-900/20" : "text-slate-400 hover:text-accent-pink hover:bg-pink-50 dark:hover:bg-pink-900/20"}`} title="Flex your WPM"><span className="material-icons text-lg">emoji_events</span><span className="hidden sm:inline">Flex WPM</span></button>
-                      <button type="button" onClick={onChallenge} disabled={!profile || pendingType === "challenge"} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-40 ${pendingType === "challenge" ? "text-accent-blue bg-blue-50 dark:bg-blue-900/20" : "text-slate-400 hover:text-accent-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"}`} title="Challenge someone"><span className="material-icons text-lg">swords</span><span className="hidden sm:inline">Challenge</span></button>
+                    <div className="flex gap-1 items-center">
+                      <button type="button" onClick={onFlexWPM} disabled={!profile || pendingType === "flex"} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors text-xs font-medium disabled:opacity-40 ${pendingType === "flex" ? "text-accent-pink" : "text-slate-400 hover:text-accent-pink"}`} title="Flex your WPM"><span className="material-icons text-base">emoji_events</span><span className="hidden sm:inline">Flex WPM</span></button>
+                      <button type="button" onClick={onChallenge} disabled={!profile || pendingType === "challenge"} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors text-xs font-medium disabled:opacity-40 ${pendingType === "challenge" ? "text-accent-blue" : "text-slate-400 hover:text-accent-blue"}`} title="Challenge someone"><span className="material-icons text-base">swords</span><span className="hidden sm:inline">Challenge</span></button>
                     </div>
                     <button type="button" onClick={onPost} disabled={!profile || !postText.trim() || posting} className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-1.5 rounded-lg font-bold text-sm shadow-pop-sm hover:shadow-pop hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                       {posting ? "Posting…" : "Post"}
@@ -122,7 +122,7 @@ export function FeedLayout(props: FeedLayoutProps) {
             <div className="flex space-x-1 bg-surface-light dark:bg-surface-dark p-1 rounded-xl border border-slate-200 dark:border-slate-700">
               {(["following", "top", "global"] as const).map((f) => (
                 <button key={f} onClick={() => onFilterChange(f)} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors capitalize ${filter === f ? "font-bold text-slate-900 dark:text-white bg-primary/20" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>
-                  {f === "top" ? "Top Races" : f === "global" ? "Global" : "Following"}
+                  {f === "top" ? "Top Posts" : f === "global" ? "Global" : "Following"}
                 </button>
               ))}
             </div>
@@ -135,12 +135,8 @@ export function FeedLayout(props: FeedLayoutProps) {
           </div>
 
           <aside className="hidden lg:block lg:col-span-3 space-y-6">
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-500 px-2">
-              <Link href="#" className="hover:underline">About</Link>
-              <Link href="#" className="hover:underline">Terms</Link>
-              <Link href="#" className="hover:underline">Privacy</Link>
-              <Link href="#" className="hover:underline">Docs</Link>
-              <span>© 2025 KeySocial</span>
+            <div className="text-xs text-slate-500 px-2">
+              <span>© 2026 KeySocial</span>
             </div>
           </aside>
         </div>

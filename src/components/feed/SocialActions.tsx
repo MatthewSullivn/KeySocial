@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { useUserStore } from "@/store/user-store";
 import {
   likeContent,
@@ -179,12 +180,12 @@ export function SocialActions({
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {comments.map((c, idx) => (
                 <div key={c.id || `comment-${idx}`} className="flex gap-3 group/comment">
-                  <div className="w-7 h-7 rounded-md bg-primary/20 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                  <Link href={`/profile/${c.author}`} className="w-7 h-7 rounded-md bg-primary/20 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0 hover:ring-2 hover:ring-primary/40 transition-all">
                     {c.author[0]?.toUpperCase()}
-                  </div>
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm">{c.author}</span>
+                      <Link href={`/profile/${c.author}`} className="font-bold text-sm hover:text-primary transition-colors">{c.author}</Link>
                       <span className="text-xs text-slate-400">{formatTime(c.createdAt)}</span>
                       {currentUsername && c.author === currentUsername && (
                         <button

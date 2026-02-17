@@ -68,6 +68,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
   const [roomCode, setRoomCode] = useState(initialRoomCode?.toUpperCase() || "");
   const [isHost, setIsHost] = useState(false);
   const [opponentName, setOpponentName] = useState<string | null>(null);
+  const [opponentId, setOpponentId] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   // Deposit tracking for multiplayer staking
@@ -112,17 +113,10 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
     const pname = getPlayerUsername();
     const store = useGameStore.getState();
 
-    if (isHostPlayer) {
-      store.initMultiplayerGame(
-        pid, pname, opponentName || "Opponent",
-        payload.words, payload.difficulty, payload.trackLength, code, payload.stakeAmount
-      );
-    } else {
-      store.initMultiplayerGame(
-        pid, pname, opponentName || "Opponent",
-        payload.words, payload.difficulty, payload.trackLength, code, payload.stakeAmount
-      );
-    }
+    store.initMultiplayerGame(
+      pid, pname, opponentId || "remote-opponent", opponentName || "Opponent",
+      payload.words, payload.difficulty, payload.trackLength, code, payload.stakeAmount
+    );
 
     if (channelRef.current) {
       onMultiplayerStart(channelRef.current);
@@ -203,12 +197,16 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
     const channel = createRoomChannel(code, player, {
       onPlayerJoin: (p) => {
         setOpponentName(p.username);
+        setOpponentId(p.id);
         toast.success(`${p.username} joined the room!`);
       },
       onPlayerLeave: (p) => {
+        // Ignore presence leaves once the game has started (racing/finished)
+        const gs = useGameStore.getState().gameState;
+        if (gs === "racing" || gs === "finished" || gs === "countdown") return;
         setOpponentName(null);
+        setOpponentId(null);
         toast.error(`${p.username} left the room.`);
-        // If we were in deposit phase, cancel it
         if (depositPhase) {
           setDepositPhase(false);
           setOpponentDepositDone(false);
@@ -244,9 +242,13 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
     const channel = createRoomChannel(code, player, {
       onPlayerJoin: (p) => {
         setOpponentName(p.username);
+        setOpponentId(p.id);
       },
       onPlayerLeave: (p) => {
+        const gs = useGameStore.getState().gameState;
+        if (gs === "racing" || gs === "finished" || gs === "countdown") return;
         setOpponentName(null);
+        setOpponentId(null);
         toast.error(`${p.username} left the room.`);
         if (depositPhase) {
           setDepositPhase(false);
@@ -278,7 +280,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
           const pname = getPlayerUsername();
           const store = useGameStore.getState();
           store.initMultiplayerGame(
-            pid, pname, opponentName || "Opponent",
+            pid, pname, opponentId || "remote-opponent", opponentName || "Opponent",
             payload.words, payload.difficulty, payload.trackLength, code, 0
           );
           if (channelRef.current) {
@@ -321,7 +323,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
       const pid = getPlayerId();
       const pname = getPlayerUsername();
       initMultiplayerGame(
-        pid, pname, opponentName,
+        pid, pname, opponentId || "remote-opponent", opponentName || "Opponent",
         startPayload.words, startPayload.difficulty, startPayload.trackLength, roomCode, 0
       );
       onMultiplayerStart(channelRef.current);
@@ -331,7 +333,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
   function handleBotStart() {
     const playerId = getPlayerId();
     const playerUsername = getPlayerUsername();
-    initGame(playerId, playerUsername, difficulty, stakeAmount > 0 ? "ranked" : "practice", stakeAmount);
+    initGame(playerId, playerUsername, difficulty, "practice", 0);
     onStart();
   }
 
@@ -339,6 +341,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
     cleanupChannel();
     channelRef.current = null;
     setOpponentName(null);
+    setOpponentId(null);
     setRoomCode("");
     setSetupMode("choose");
     setDepositPhase(false);
@@ -627,7 +630,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
           <span className="material-icons text-primary text-3xl">smart_toy</span>
           Practice vs Bot
         </h1>
-        <p className="text-muted-light dark:text-muted-dark">Choose your difficulty and stake amount</p>
+        <p className="text-muted-light dark:text-muted-dark">Choose your difficulty</p>
       </div>
 
       <div className="mb-8">
@@ -659,37 +662,12 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
         </div>
       </div>
 
-      <div className="mb-10">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-light dark:text-muted-dark mb-3">Stake Amount (SOL)</h3>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {stakeOptions.map((amount) => (
-            <button
-              key={amount}
-              onClick={() => setStakeAmount(amount)}
-              className={cn(
-                "px-4 py-3 rounded-xl font-mono text-sm font-bold transition-all border",
-                stakeAmount === amount
-                  ? "border-primary bg-primary/10 text-primary shadow-[0_0_10px_rgba(212,232,98,0.3)]"
-                  : "border-gray-200 dark:border-gray-700 text-muted-light dark:text-muted-dark hover:border-gray-300 dark:hover:border-gray-600"
-              )}
-            >
-              {amount === 0 ? "Free" : `${amount}`}
-            </button>
-          ))}
-        </div>
-        {stakeAmount > 0 && (
-          <p className="text-xs text-muted-light dark:text-muted-dark mt-2">
-            Both players stake {stakeAmount} SOL. Winner takes all.
-          </p>
-        )}
-      </div>
-
       <button
         onClick={handleBotStart}
         className="w-full py-4 rounded-xl bg-primary hover:bg-[#B8D43B] text-black font-extrabold text-lg shadow-lg hover:shadow-[0_0_15px_rgba(212,232,98,0.5)] transition-all hover:-translate-y-0.5 active:scale-[0.99] flex items-center justify-center gap-2"
       >
         <span className="material-icons">swords</span>
-        {stakeAmount > 0 ? `Stake ${stakeAmount} SOL & Race` : "Start Practice Race"}
+        Start Practice Race
       </button>
     </div>
   );

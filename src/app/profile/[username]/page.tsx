@@ -78,21 +78,33 @@ export default function ProfilePage() {
       }
 
       const contents = await getContents(50, 0);
-      const matches = contents.filter((c) => {
+      const allMatches = contents.filter((c) => {
         const props = c.properties || {};
         return (
           props.type === "match_result" &&
           (props.winnerId === (p.id || p.username) || props.loserId === (p.id || p.username))
         );
       });
-      setMatchHistory(matches);
+      // Deduplicate matches with same winner+loser+WPM within 5 seconds of each other
+      const deduped: TapestryContent[] = [];
+      const seen = new Set<string>();
+      for (const m of allMatches) {
+        const pr = m.properties || {};
+        const ts = m.createdAt ? Math.floor(new Date(m.createdAt).getTime() / 5000) : "";
+        const key = `${pr.winnerId}-${pr.loserId}-${pr.winnerWPM}-${pr.loserWPM}-${ts}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(m);
+        }
+      }
+      setMatchHistory(deduped);
 
       let wins = 0,
         losses = 0,
         bestWPM = 0,
         totalAcc = 0,
         totalEarnings = 0;
-      for (const m of matches) {
+      for (const m of deduped) {
         const props = m.properties || {};
         const isWinner = props.winnerId === (p.id || p.username);
         if (isWinner) {
@@ -111,7 +123,7 @@ export default function ProfilePage() {
         wins,
         losses,
         bestWPM,
-        avgAccuracy: matches.length > 0 ? Math.round(totalAcc / matches.length) : 0,
+        avgAccuracy: deduped.length > 0 ? Math.round(totalAcc / deduped.length) : 0,
         totalEarnings,
       });
     } catch (err) {
@@ -219,7 +231,7 @@ export default function ProfilePage() {
                   <span className="material-icons-outlined text-base">verified</span>
                   Professional Racer
                   <span className="w-1 h-1 rounded-full bg-gray-400"></span>
-                  Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "—"}
+                  Joined {profile.createdAt ? `${new Date(profile.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} at ${new Date(profile.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : "—"}
                 </p>
               </div>
 
@@ -238,7 +250,7 @@ export default function ProfilePage() {
                   </button>
                 ) : null}
                 <Link
-                  href="/match"
+                  href="/game?mode=create"
                   className="px-5 py-2 rounded-full font-bold text-sm bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
                 >
                   Challenge
@@ -348,8 +360,8 @@ export default function ProfilePage() {
           {matchHistory.length === 0 ? (
             <div className="p-10 text-center text-muted-light dark:text-muted-dark">
               No matches yet. Start a duel from{" "}
-              <Link className="underline" href="/match">
-                Match Lobby
+              <Link className="underline" href="/game?mode=create">
+                Game
               </Link>
               .
             </div>
@@ -370,16 +382,24 @@ export default function ProfilePage() {
                       <div>
                         <div className="font-bold">
                           {isWinner ? "WIN" : "LOSS"} <span className="text-muted-light dark:text-muted-dark font-normal">vs</span>{" "}
-                          {opp || "—"}
+                          {opp ? (
+                            opp === "KeyBot" || opp.startsWith("ai-") ? (
+                              <span className="text-muted-light dark:text-muted-dark">{opp}</span>
+                            ) : (
+                              <Link href={`/profile/${opp}`} className="hover:text-primary transition-colors">{opp}</Link>
+                            )
+                          ) : "—"}
                         </div>
                         <div className="text-sm text-muted-light dark:text-muted-dark font-mono">
                           {wpm || "—"} WPM • {acc || "—"}% • {props.stakeAmount || "0"} SOL
                         </div>
+                        {m.createdAt && (
+                          <div className="text-xs text-slate-400 mt-0.5">
+                            {new Date(m.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} at {new Date(m.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <Link href="/game" className="text-sm font-bold hover:underline">
-                      Watch
-                    </Link>
                   </div>
                 );
               })}

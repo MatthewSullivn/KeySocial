@@ -53,7 +53,6 @@ function GamePageInner() {
     startCountdown,
     handleKeyPress,
     updateOpponent,
-    updateRemoteOpponent,
     tick,
     resetGame,
   } = useGameStore();
@@ -62,6 +61,21 @@ function GamePageInner() {
 
   const [lastResult, setLastResult] = useState<"correct" | "wrong" | null>(null);
   const [showSetup, setShowSetup] = useState(true);
+
+  // Reset game state when navigating to this page fresh (e.g. from feed bot cards)
+  const didResetOnMount = useRef(false);
+  useEffect(() => {
+    if (didResetOnMount.current) return;
+    didResetOnMount.current = true;
+    const gs = useGameStore.getState().gameState;
+    if (gs !== "idle") {
+      cleanupChannel();
+      resetGame();
+      setShowSetup(true);
+      setLastResult(null);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const opponentIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resultFeedbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -136,7 +150,7 @@ function GamePageInner() {
     };
   }, [gameState, updateOpponent, matchMode]);
 
-  // Multiplayer: broadcast player progress (throttled ~100ms)
+  // Multiplayer: broadcast player progress (throttled ~200ms)
   useEffect(() => {
     if (matchMode !== "multiplayer" || gameState !== "racing") return;
     if (!mpChannelRef.current) return;
@@ -160,20 +174,46 @@ function GamePageInner() {
         isFinished: p.isFinished,
       };
       broadcastProgress(channel, payload);
-
-      if (p.isFinished) {
-        broadcastFinished(channel, p.id);
-      }
-    }, 100);
+    }, 200);
 
     return () => {
       if (broadcastThrottleRef.current) clearTimeout(broadcastThrottleRef.current);
     };
-  }, [gameState, matchMode, player.correctHits, player.streak, player.isFinished, player.progress]);
+  }, [gameState, matchMode, player.correctHits, player.streak, player.progress]);
+
+  // Multiplayer: broadcast finish IMMEDIATELY when player finishes (separate from throttled progress)
+  const didBroadcastFinish = useRef(false);
+  useEffect(() => {
+    if (matchMode !== "multiplayer") return;
+    if (!player.isFinished || didBroadcastFinish.current) return;
+    const channel = mpChannelRef.current;
+    if (!channel) return;
+
+    didBroadcastFinish.current = true;
+
+    // Send finish broadcast immediately (not throttled)
+    broadcastFinished(channel, player.id);
+
+    // Also send a final progress update so the opponent has accurate stats
+    const p = useGameStore.getState().player;
+    broadcastProgress(channel, {
+      playerId: p.id,
+      username: p.username,
+      progress: p.progress,
+      wpm: p.wpm,
+      accuracy: p.accuracy,
+      correctHits: p.correctHits,
+      totalHits: p.totalHits,
+      streak: p.streak,
+      isFinished: true,
+    });
+  }, [matchMode, player.isFinished, player.id]);
 
   // Record match result on Tapestry + cleanup multiplayer + payout
+  const didRecordMatch = useRef(false);
   useEffect(() => {
-    if (gameState === "finished" && matchResult && profile) {
+    if (gameState === "finished" && matchResult && profile && !didRecordMatch.current) {
+      didRecordMatch.current = true;
       recordMatchOnChain();
     }
 
@@ -181,12 +221,21 @@ function GamePageInner() {
       setTimeout(() => {
         cleanupChannel();
         mpChannelRef.current = null;
-      }, 2000);
+      }, 5000);
     }
   }, [gameState, matchResult]);
 
   async function recordMatchOnChain() {
     if (!matchResult || !profile) return;
+
+    // In multiplayer, only the winner records the match to avoid duplicates
+    if (matchMode === "multiplayer" && matchResult.winnerId !== player.id) {
+      if (stakeAmount > 0) {
+        toast.error("Better luck next time! Your stake has been lost.");
+      }
+      return;
+    }
+
     try {
       const result = await recordMatchResult(profile.id || profile.username, {
         ...matchResult,
@@ -196,10 +245,8 @@ function GamePageInner() {
       toast.success("Match result recorded onchain!");
 
       // Trigger payout if staked match and player won
-      if (stakeAmount > 0 && matchResult.winnerId === player.id && result?.id) {
+      if (stakeAmount > 0 && result?.id) {
         await claimPayout(result.id);
-      } else if (stakeAmount > 0 && matchResult.winnerId !== player.id) {
-        toast.error("Better luck next time! Your stake has been lost.");
       }
     } catch (err) {
       console.error("Failed to record match:", err);
@@ -245,23 +292,43 @@ function GamePageInner() {
 
   function handleMultiplayerStart(channel: RealtimeChannel) {
     mpChannelRef.current = channel;
+    didBroadcastFinish.current = false;
 
     // Re-subscribe to events for the game phase
     channel.on("broadcast", { event: "room_event" }, ({ payload }) => {
       const evt = payload as { type: string; payload: ProgressPayload | { playerId: string } };
       if (evt.type === "progress") {
-        updateRemoteOpponent(evt.payload as ProgressPayload);
+        const data = evt.payload as ProgressPayload;
+        const store = useGameStore.getState();
+        // Allow progress updates even during countdown so opponent data is fresh
+        if (store.gameState === "racing" || store.gameState === "countdown") {
+          // Update opponent state directly without the racing-only guard
+          const updatedOpponent = { ...store.opponent };
+          updatedOpponent.progress = data.progress;
+          updatedOpponent.wpm = data.wpm;
+          updatedOpponent.speed = data.wpm;
+          updatedOpponent.accuracy = data.accuracy;
+          updatedOpponent.correctHits = data.correctHits;
+          updatedOpponent.totalHits = data.totalHits;
+          updatedOpponent.streak = data.streak;
+          updatedOpponent.isFinished = data.isFinished;
+          updatedOpponent.username = data.username;
+          useGameStore.setState({ opponent: updatedOpponent });
+        }
       }
       if (evt.type === "player_finished") {
         const store = useGameStore.getState();
-        if (store.gameState === "racing") {
+        if (store.gameState === "racing" || store.gameState === "countdown") {
+          // Mark opponent as finished before ending the game
+          const updatedOpponent = { ...store.opponent, isFinished: true, progress: 100 };
+          useGameStore.setState({ opponent: updatedOpponent });
           store.endGame();
         }
       }
       if (evt.type === "player_left") {
-        toast.success("Opponent disconnected — you win!");
         const store = useGameStore.getState();
-        if (store.gameState === "racing") {
+        if (store.gameState === "racing" || store.gameState === "countdown") {
+          toast.success("Opponent disconnected — you win!");
           store.endGame();
         }
       }
@@ -274,6 +341,8 @@ function GamePageInner() {
   function handlePlayAgain() {
     cleanupChannel();
     mpChannelRef.current = null;
+    didBroadcastFinish.current = false;
+    didRecordMatch.current = false;
     resetGame();
     setShowSetup(true);
     setLastResult(null);

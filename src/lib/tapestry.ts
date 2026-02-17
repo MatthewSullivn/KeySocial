@@ -333,11 +333,11 @@ export async function recordMatchResult(
 }
 
 export async function getContents(
-  limit = 20,
+  limit = 50,
   offset = 0,
   requestingProfileId?: string
 ): Promise<TapestryContent[]> {
-  let url = `/contents?limit=${limit}&offset=${offset}`;
+  let url = `/contents?pageSize=${limit}&page=${Math.floor(offset / limit) + 1}`;
   if (requestingProfileId) {
     url += `&requestingProfileId=${encodeURIComponent(requestingProfileId)}`;
   }

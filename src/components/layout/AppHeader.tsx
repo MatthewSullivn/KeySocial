@@ -20,6 +20,7 @@ type NavItem = { href: string; label: string; icon: string };
 const NAV: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/feed", label: "Feed", icon: "forum" },
+  { href: "/game", label: "Game", icon: "sports_esports" },
   { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
 ];
 

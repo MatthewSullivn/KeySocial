@@ -51,6 +51,7 @@ interface GameStore {
   initMultiplayerGame: (
     playerId: string,
     playerUsername: string,
+    opponentId: string,
     opponentUsername: string,
     words: WordPrompt[],
     difficulty: string,
@@ -117,7 +118,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
-  initMultiplayerGame: (playerId, playerUsername, opponentUsername, words, difficulty, trackLength, roomCode, stakeAmount = 0) => {
+  initMultiplayerGame: (playerId, playerUsername, opponentId, opponentUsername, words, difficulty, trackLength, roomCode, stakeAmount = 0) => {
     const config = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.medium;
     const configWithTrack = { ...config, trackLength };
 
@@ -128,7 +129,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       timeElapsed: 0,
       startTime: null,
       player: createPlayerState(playerId, playerUsername),
-      opponent: createPlayerState("remote-opponent", opponentUsername),
+      opponent: createPlayerState(opponentId || "remote-opponent", opponentUsername),
       currentWord: words[0] || null,
       wordHistory: [],
       upcomingWords: words.slice(1),

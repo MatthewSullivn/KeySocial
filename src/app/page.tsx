@@ -36,10 +36,10 @@ export default function LandingPageV2() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8 text-center lg:text-left">
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-extrabold leading-tight tracking-tight">
-                Race at the <br />
+                Type Fast. <br />
                 <span className="relative inline-block">
                   <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-accent-pink to-accent-purple">
-                    Speed of Social
+                    Win On-Chain.
                   </span>
                   <span className="absolute bottom-2 left-0 w-full h-3 bg-primary/30 -z-10 rounded-sm transform -rotate-1"></span>
                 </span>
@@ -51,7 +51,7 @@ export default function LandingPageV2() {
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                 <Link
                   className="w-full sm:w-auto px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                  href="/match"
+                  href="/game?mode=create"
                 >
                   Start Racing
                 </Link>
@@ -105,9 +105,6 @@ export default function LandingPageV2() {
                   </span>
                 </div>
 
-                <div className="absolute top-1/3 right-1/4 w-20 h-20 bg-primary rounded-full shadow-lg flex items-center justify-center border-4 border-white dark:border-gray-800 z-30 animate-[spin_10s_linear_infinite]">
-                  <span className="material-icons text-black text-4xl">currency_bitcoin</span>
-                </div>
 
                 <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" xmlns="http://www.w3.org/2000/svg">
                   <path d="M100 200 Q 250 150 350 350" fill="none" stroke="#D9ED65" strokeDasharray="10 10" strokeWidth="4" />
@@ -118,30 +115,6 @@ export default function LandingPageV2() {
           </div>
         </div>
 
-        {/* Trusted row */}
-        <div className="py-10 bg-gray-50 dark:bg-gray-800/50 border-y border-gray-100 dark:border-gray-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <p className="text-center text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-8">
-              Trusted by Builders &amp; Racers
-            </p>
-            <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-              {[
-                { icon: "token", label: "SOLANA", cls: "text-primary" },
-                { icon: "rocket", label: "PHANTOM", cls: "text-accent-pink" },
-                { icon: "hub", label: "HELIUS", cls: "text-accent-purple" },
-                { icon: "security", label: "JUPITER", cls: "text-accent-teal" },
-                { icon: "architecture", label: "METAPLEX", cls: "" },
-              ].map((x) => (
-                <div
-                  key={x.label}
-                  className="flex items-center gap-2 text-xl font-bold font-display text-gray-800 dark:text-gray-200"
-                >
-                  <span className={`material-icons ${x.cls}`}>{x.icon}</span> {x.label}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
         {/* Vision */}
         <div id="vision" className="py-24 relative overflow-hidden">
@@ -234,8 +207,8 @@ export default function LandingPageV2() {
               <Link className="hover:text-black dark:hover:text-white" href="/leaderboard">
                 Leaderboard
               </Link>
-              <Link className="hover:text-black dark:hover:text-white" href="/match">
-                Lobby
+              <Link className="hover:text-black dark:hover:text-white" href="/game">
+                Game
               </Link>
             </div>
           </div>
