@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import dynamic from "next/dynamic";
 import { useUserStore } from "@/store/user-store";
 import { useGameStore } from "@/store/game-store";
@@ -10,11 +11,13 @@ import {
   generateRoomCode,
   createRoomChannel,
   broadcastGameStart,
+  broadcastDepositConfirmed,
   cleanupChannel,
   type PlayerPresence,
   type GameStartPayload,
-  type ProgressPayload,
+  type DepositConfirmedPayload,
 } from "@/lib/multiplayer";
+import { createDepositTransaction, getConnection } from "@/lib/escrow";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -33,6 +36,7 @@ interface GameSetupProps {
   initialDifficulty?: string;
   initialMode?: string;
   initialRoomCode?: string;
+  initialStake?: number;
 }
 
 const difficulties = [
@@ -46,8 +50,9 @@ const stakeOptions = [0, 0.01, 0.05, 0.1, 0.25, 0.5];
 
 type SetupMode = "choose" | "bot" | "create" | "join" | "waiting";
 
-export default function GameSetup({ onStart, onMultiplayerStart, initialDifficulty, initialMode, initialRoomCode }: GameSetupProps) {
-  const { connected } = useWallet();
+export default function GameSetup({ onStart, onMultiplayerStart, initialDifficulty, initialMode, initialRoomCode, initialStake }: GameSetupProps) {
+  const { connected, publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const { profile, walletAddress } = useUserStore();
   const { initGame, initMultiplayerGame } = useGameStore();
 
@@ -55,15 +60,24 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
   const [difficulty, setDifficulty] = useState(
     initialDifficulty && validDiffs.includes(initialDifficulty) ? initialDifficulty : "medium"
   );
-  const [stakeAmount, setStakeAmount] = useState(0);
+  const [stakeAmount, setStakeAmount] = useState(initialStake ?? 0);
 
   const [setupMode, setSetupMode] = useState<SetupMode>(
-    initialMode === "join" ? "join" : "choose"
+    initialMode === "join" ? "join" : initialMode === "bot" ? "bot" : "choose"
   );
   const [roomCode, setRoomCode] = useState(initialRoomCode?.toUpperCase() || "");
   const [isHost, setIsHost] = useState(false);
   const [opponentName, setOpponentName] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+
+  // Deposit tracking for multiplayer staking
+  const [myDepositDone, setMyDepositDone] = useState(false);
+  const [opponentDepositDone, setOpponentDepositDone] = useState(false);
+  const [isDepositing, setIsDepositing] = useState(false);
+  const [depositPhase, setDepositPhase] = useState(false); // true = waiting for deposits
+  // Store game start payload so guest can finalize after deposits
+  const pendingGameStartRef = useRef<{ payload: GameStartPayload; code: string } | null>(null);
+  const depositTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-create room if mode=create, auto-join if mode=join
   const didAutoAction = useRef(false);
@@ -81,7 +95,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
 
   useEffect(() => {
     return () => {
-      // Don't cleanup here if we're transitioning to the game
+      if (depositTimeoutRef.current) clearTimeout(depositTimeoutRef.current);
     };
   }, []);
 
@@ -90,6 +104,88 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
   }
   function getPlayerUsername() {
     return profile?.username || "Player";
+  }
+
+  // Start the actual game after both deposits confirmed (or immediately if no stake)
+  const finalizeGameStart = useCallback((payload: GameStartPayload, code: string, isHostPlayer: boolean) => {
+    const pid = getPlayerId();
+    const pname = getPlayerUsername();
+    const store = useGameStore.getState();
+
+    if (isHostPlayer) {
+      store.initMultiplayerGame(
+        pid, pname, opponentName || "Opponent",
+        payload.words, payload.difficulty, payload.trackLength, code, payload.stakeAmount
+      );
+    } else {
+      store.initMultiplayerGame(
+        pid, pname, opponentName || "Opponent",
+        payload.words, payload.difficulty, payload.trackLength, code, payload.stakeAmount
+      );
+    }
+
+    if (channelRef.current) {
+      onMultiplayerStart(channelRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opponentName, onMultiplayerStart]);
+
+  async function handleDeposit(stakeSOL: number, gamePayload: GameStartPayload, code: string, isHostPlayer: boolean) {
+    if (!publicKey || !sendTransaction) {
+      toast.error("Wallet not connected");
+      return;
+    }
+
+    setIsDepositing(true);
+    try {
+      const tx = await createDepositTransaction(publicKey, stakeSOL);
+      const escrowConnection = getConnection();
+      const signature = await sendTransaction(tx, escrowConnection);
+      await escrowConnection.confirmTransaction(signature, "confirmed");
+
+      toast.success(`Deposited ${stakeSOL} SOL to escrow`);
+      setMyDepositDone(true);
+
+      // Broadcast deposit confirmation
+      if (channelRef.current) {
+        broadcastDepositConfirmed(channelRef.current, getPlayerId(), signature);
+      }
+
+      // Check if opponent already deposited
+      if (opponentDepositDone) {
+        if (depositTimeoutRef.current) clearTimeout(depositTimeoutRef.current);
+        finalizeGameStart(gamePayload, code, isHostPlayer);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("insufficient") || msg.includes("0x1")) {
+        toast.error("Insufficient SOL balance");
+      } else {
+        toast.error("Deposit failed: " + msg);
+      }
+      // Reset deposit phase on failure
+      setDepositPhase(false);
+      setMyDepositDone(false);
+      setOpponentDepositDone(false);
+    } finally {
+      setIsDepositing(false);
+    }
+  }
+
+  // When opponent deposits after we already deposited
+  useEffect(() => {
+    if (myDepositDone && opponentDepositDone && depositPhase && pendingGameStartRef.current) {
+      if (depositTimeoutRef.current) clearTimeout(depositTimeoutRef.current);
+      const { payload, code } = pendingGameStartRef.current;
+      finalizeGameStart(payload, code, isHost);
+    }
+  }, [myDepositDone, opponentDepositDone, depositPhase, isHost, finalizeGameStart]);
+
+  function handleDepositConfirmed(data: DepositConfirmedPayload) {
+    if (data.playerId !== getPlayerId()) {
+      setOpponentDepositDone(true);
+      toast.success("Opponent deposited SOL!");
+    }
   }
 
   function handleCreateRoom() {
@@ -112,10 +208,17 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
       onPlayerLeave: (p) => {
         setOpponentName(null);
         toast.error(`${p.username} left the room.`);
+        // If we were in deposit phase, cancel it
+        if (depositPhase) {
+          setDepositPhase(false);
+          setOpponentDepositDone(false);
+          toast.error("Opponent left during staking. Match cancelled.");
+        }
       },
       onGameStart: () => {},
       onProgress: () => {},
       onPlayerFinished: () => {},
+      onDepositConfirmed: handleDepositConfirmed,
     });
 
     channelRef.current = channel;
@@ -145,21 +248,47 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
       onPlayerLeave: (p) => {
         setOpponentName(null);
         toast.error(`${p.username} left the room.`);
+        if (depositPhase) {
+          setDepositPhase(false);
+          setOpponentDepositDone(false);
+          toast.error("Opponent left during staking. Match cancelled.");
+        }
       },
       onGameStart: (payload: GameStartPayload) => {
-        const pid = getPlayerId();
-        const pname = getPlayerUsername();
-        const store = useGameStore.getState();
-        store.initMultiplayerGame(
-          pid, pname, opponentName || "Opponent",
-          payload.words, payload.difficulty, payload.trackLength, code
-        );
-        if (channelRef.current) {
-          onMultiplayerStart(channelRef.current);
+        if (payload.stakeAmount > 0) {
+          // Need to deposit first
+          setStakeAmount(payload.stakeAmount);
+          setDepositPhase(true);
+          pendingGameStartRef.current = { payload, code };
+
+          // Set 60s timeout for deposits
+          depositTimeoutRef.current = setTimeout(() => {
+            toast.error("Deposit timeout. Match cancelled.");
+            setDepositPhase(false);
+            setMyDepositDone(false);
+            setOpponentDepositDone(false);
+            pendingGameStartRef.current = null;
+          }, 60000);
+
+          // Auto-trigger deposit for guest
+          handleDeposit(payload.stakeAmount, payload, code, false);
+        } else {
+          // Zero stake — start immediately
+          const pid = getPlayerId();
+          const pname = getPlayerUsername();
+          const store = useGameStore.getState();
+          store.initMultiplayerGame(
+            pid, pname, opponentName || "Opponent",
+            payload.words, payload.difficulty, payload.trackLength, code, 0
+          );
+          if (channelRef.current) {
+            onMultiplayerStart(channelRef.current);
+          }
         }
       },
       onProgress: () => {},
       onPlayerFinished: () => {},
+      onDepositConfirmed: handleDepositConfirmed,
     });
 
     channelRef.current = channel;
@@ -169,15 +298,34 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
   function handleHostStart() {
     if (!channelRef.current || !opponentName) return;
     const config = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.medium;
-    const startPayload = broadcastGameStart(channelRef.current, config.difficulty, config.trackLength);
+    const startPayload = broadcastGameStart(channelRef.current, config.difficulty, config.trackLength, stakeAmount);
 
-    const pid = getPlayerId();
-    const pname = getPlayerUsername();
-    initMultiplayerGame(
-      pid, pname, opponentName,
-      startPayload.words, startPayload.difficulty, startPayload.trackLength, roomCode
-    );
-    onMultiplayerStart(channelRef.current);
+    if (stakeAmount > 0) {
+      // Enter deposit phase
+      setDepositPhase(true);
+      pendingGameStartRef.current = { payload: startPayload, code: roomCode };
+
+      // Set 60s timeout
+      depositTimeoutRef.current = setTimeout(() => {
+        toast.error("Deposit timeout. Match cancelled.");
+        setDepositPhase(false);
+        setMyDepositDone(false);
+        setOpponentDepositDone(false);
+        pendingGameStartRef.current = null;
+      }, 60000);
+
+      // Host deposits
+      handleDeposit(stakeAmount, startPayload, roomCode, true);
+    } else {
+      // Zero stake — start immediately
+      const pid = getPlayerId();
+      const pname = getPlayerUsername();
+      initMultiplayerGame(
+        pid, pname, opponentName,
+        startPayload.words, startPayload.difficulty, startPayload.trackLength, roomCode, 0
+      );
+      onMultiplayerStart(channelRef.current);
+    }
   }
 
   function handleBotStart() {
@@ -193,6 +341,10 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
     setOpponentName(null);
     setRoomCode("");
     setSetupMode("choose");
+    setDepositPhase(false);
+    setMyDepositDone(false);
+    setOpponentDepositDone(false);
+    if (depositTimeoutRef.current) clearTimeout(depositTimeoutRef.current);
   }
 
   if (!connected) {
@@ -239,7 +391,16 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
                 <div className="font-bold text-sm">{getPlayerUsername()}</div>
                 <div className="text-xs text-slate-500">{isHost ? "Host" : "Guest"}</div>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">Ready</span>
+              {depositPhase ? (
+                <span className={cn(
+                  "text-xs px-2 py-0.5 rounded-full font-bold",
+                  myDepositDone ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                )}>
+                  {myDepositDone ? "Deposited" : isDepositing ? "Depositing..." : "Pending"}
+                </span>
+              ) : (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">Ready</span>
+              )}
             </div>
 
             {opponentName ? (
@@ -251,7 +412,16 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
                   <div className="font-bold text-sm">{opponentName}</div>
                   <div className="text-xs text-slate-500">{isHost ? "Guest" : "Host"}</div>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">Ready</span>
+                {depositPhase ? (
+                  <span className={cn(
+                    "text-xs px-2 py-0.5 rounded-full font-bold",
+                    opponentDepositDone ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                  )}>
+                    {opponentDepositDone ? "Deposited" : "Pending"}
+                  </span>
+                ) : (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">Ready</span>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-slate-800 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600">
@@ -266,7 +436,23 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
             )}
           </div>
 
-          {isHost && (
+          {/* Deposit phase UI */}
+          {depositPhase && (
+            <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+              <div className="text-sm font-bold text-yellow-800 dark:text-yellow-300 mb-1">
+                Staking {stakeAmount} SOL each
+              </div>
+              <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                {myDepositDone && opponentDepositDone
+                  ? "Both deposits confirmed! Starting race..."
+                  : myDepositDone
+                  ? "Waiting for opponent to deposit..."
+                  : "Confirm the transaction in your wallet"}
+              </div>
+            </div>
+          )}
+
+          {isHost && !depositPhase && (
             <div className="mt-6">
               <div className="mb-4">
                 <div className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Difficulty</div>
@@ -289,24 +475,54 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
                 </div>
               </div>
 
+              {/* Stake selector for multiplayer */}
+              <div className="mb-4">
+                <div className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Stake (SOL)</div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {stakeOptions.map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => setStakeAmount(amount)}
+                      className={cn(
+                        "px-3 py-2 rounded-xl font-mono text-xs font-bold transition-all border",
+                        stakeAmount === amount
+                          ? "border-primary bg-primary/10 text-primary shadow-[0_0_10px_rgba(212,232,98,0.3)]"
+                          : "border-gray-200 dark:border-gray-700 text-muted-light dark:text-muted-dark hover:border-gray-300 dark:hover:border-gray-600"
+                      )}
+                    >
+                      {amount === 0 ? "Free" : `${amount}`}
+                    </button>
+                  ))}
+                </div>
+                {stakeAmount > 0 && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Winner takes {(stakeAmount * 2 * 0.95).toFixed(3)} SOL (5% fee)
+                  </p>
+                )}
+              </div>
+
               <button
                 onClick={handleHostStart}
                 disabled={!opponentName}
                 className="w-full py-3 rounded-xl bg-primary hover:bg-[#B8D43B] text-black font-extrabold text-lg shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <span className="material-icons">swords</span>
-                {opponentName ? "Start Race!" : "Waiting for opponent..."}
+                {!opponentName
+                  ? "Waiting for opponent..."
+                  : stakeAmount > 0
+                  ? `Stake ${stakeAmount} SOL & Start`
+                  : "Start Race!"}
               </button>
             </div>
           )}
 
-          {!isHost && !opponentName && (
+          {!isHost && !opponentName && !depositPhase && (
             <div className="mt-6 text-sm text-slate-400">
               <span className="material-icons text-base align-middle animate-spin mr-1">progress_activity</span>
               Connecting to room...
             </div>
           )}
-          {!isHost && opponentName && (
+          {!isHost && opponentName && !depositPhase && (
             <div className="mt-6 text-sm text-slate-500">
               <span className="material-icons text-base align-middle mr-1">hourglass_top</span>
               Waiting for host to start the race...

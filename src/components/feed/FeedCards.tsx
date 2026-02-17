@@ -294,6 +294,7 @@ export function FeedCardPost({
   content,
   likes,
   comments,
+  hasLiked,
   onDelete,
   postType,
   meta,
@@ -305,6 +306,7 @@ export function FeedCardPost({
   content: string;
   likes: number;
   comments: number;
+  hasLiked?: boolean;
   onDelete?: () => void;
   postType?: "normal" | "flex" | "challenge";
   meta?: { wpm?: number; challengerUsername?: string };
@@ -341,7 +343,7 @@ export function FeedCardPost({
             <ChallengeBlock challengerUsername={meta?.challengerUsername || author} />
           )}
 
-          <SocialActions postId={postId} initialLikes={likes} initialComments={comments} showShare />
+          <SocialActions postId={postId} initialLikes={likes} initialComments={comments} initialHasLiked={hasLiked} showShare />
         </div>
       </div>
     </div>
@@ -475,7 +477,7 @@ export function FeedCardBotChallenge({ bot }: { bot: BotChallenge }) {
             <span className={`material-icons text-2xl ${bot.accentColor}`}>smart_toy</span>
           </div>
           <p className="mt-3 text-slate-700 dark:text-slate-300 leading-relaxed">{bot.message}</p>
-          <Link href={`/game?difficulty=${bot.difficulty}`} className="mt-4 block bg-slate-900 dark:bg-slate-800 text-white rounded-xl p-4 hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors group">
+          <Link href={`/game?mode=bot&difficulty=${bot.difficulty}`} className="mt-4 block bg-slate-900 dark:bg-slate-800 text-white rounded-xl p-4 hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors group">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`${bot.bgColor} p-2 rounded-lg`}>

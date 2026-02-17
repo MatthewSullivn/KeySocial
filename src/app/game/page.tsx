@@ -33,6 +33,8 @@ function GamePageInner() {
   const initialDifficulty = searchParams.get("difficulty") || undefined;
   const initialMode = searchParams.get("mode") || undefined;
   const initialRoomCode = searchParams.get("room") || undefined;
+  const initialStakeRaw = searchParams.get("stake");
+  const initialStake = initialStakeRaw ? parseFloat(initialStakeRaw) : undefined;
 
   const {
     gameState,
@@ -169,29 +171,12 @@ function GamePageInner() {
     };
   }, [gameState, matchMode, player.correctHits, player.streak, player.isFinished, player.progress]);
 
-  // Record match result on chain + save best WPM + save to localStorage
+  // Record match result on Tapestry + cleanup multiplayer + payout
   useEffect(() => {
     if (gameState === "finished" && matchResult && profile) {
       recordMatchOnChain();
     }
-    if (gameState === "finished" && matchResult && player.wpm > 0) {
-      try {
-        const prev = parseInt(localStorage.getItem("ks_best_wpm") || "0", 10);
-        if (player.wpm > prev) {
-          localStorage.setItem("ks_best_wpm", String(player.wpm));
-        }
-      } catch {}
 
-      try {
-        const raw = localStorage.getItem("ks_match_history");
-        const history: Array<typeof matchResult & { timestamp: string }> = raw ? JSON.parse(raw) : [];
-        history.unshift({ ...matchResult, timestamp: new Date().toISOString() });
-        if (history.length > 100) history.length = 100;
-        localStorage.setItem("ks_match_history", JSON.stringify(history));
-      } catch {}
-    }
-
-    // Cleanup multiplayer channel on game finish
     if (gameState === "finished" && matchMode === "multiplayer") {
       setTimeout(() => {
         cleanupChannel();
@@ -203,14 +188,53 @@ function GamePageInner() {
   async function recordMatchOnChain() {
     if (!matchResult || !profile) return;
     try {
-      await recordMatchResult(profile.id || profile.username, {
+      const result = await recordMatchResult(profile.id || profile.username, {
         ...matchResult,
         matchType: stakeAmount > 0 ? "ranked" : "practice",
         stakeAmount,
       });
       toast.success("Match result recorded onchain!");
+
+      // Trigger payout if staked match and player won
+      if (stakeAmount > 0 && matchResult.winnerId === player.id && result?.id) {
+        await claimPayout(result.id);
+      } else if (stakeAmount > 0 && matchResult.winnerId !== player.id) {
+        toast.error("Better luck next time! Your stake has been lost.");
+      }
     } catch (err) {
       console.error("Failed to record match:", err);
+    }
+  }
+
+  async function claimPayout(matchContentId: string) {
+    if (!profile) return;
+    const walletAddr = useUserStore.getState().walletAddress;
+    if (!walletAddr) return;
+
+    try {
+      const res = await fetch("/api/escrow/payout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          winnerWallet: walletAddr,
+          stakeAmount,
+          matchContentId,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const winnings = (stakeAmount * 2 * 0.95).toFixed(3);
+        toast.success(`Winnings deposited! +${winnings} SOL`, {
+          description: `TX: ${data.txSignature?.slice(0, 12)}...`,
+        });
+      } else {
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        toast.error("Failed to claim winnings: " + (err.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Payout claim error:", err);
+      toast.error("Failed to claim winnings");
     }
   }
 
@@ -286,6 +310,7 @@ function GamePageInner() {
             initialDifficulty={initialDifficulty}
             initialMode={initialMode}
             initialRoomCode={initialRoomCode}
+            initialStake={initialStake}
           />
         </main>
       </div>

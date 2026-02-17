@@ -6,17 +6,6 @@ import type { ReactNode } from "react";
 import type { TapestryProfile } from "@/lib/tapestry";
 import type { PendingPostType, PendingMeta } from "./FeedView";
 
-const TRENDING = [
-  { id: "1", type: "race", label: "Race #8821", title: "Solana Speedrun", count: "2.4k", href: "/game" },
-  { id: "2", type: "tournament", label: "Tournament", title: "Midnight Typist Cup", count: "12k", href: "/match" },
-  { id: "3", type: "community", label: "Community", title: "Keyboard Mods", count: "856", href: "/leaderboard" },
-];
-
-const LIVE_RACES = [
-  { id: "1", name: "Crypto Typers", progress: 40, total: 8, isTeal: true },
-  { id: "2", name: "Speed Demon", progress: 70, total: 10, isTeal: false },
-];
-
 type FeedFilter = "following" | "top" | "global";
 
 interface FeedLayoutProps {
@@ -97,24 +86,6 @@ export function FeedLayout(props: FeedLayoutProps) {
               </Link>
             </div>
 
-            <div className="bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-xl p-5">
-              <h4 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
-                <span className="material-icons text-accent-pink">trending_up</span> Trending
-              </h4>
-              <ul className="space-y-3">
-                {TRENDING.map((t) => (
-                  <li key={t.id}>
-                    <Link href={t.href} className="group flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-md transition-colors">
-                      <div>
-                        <span className="text-xs text-slate-500 block">{t.label}</span>
-                        <span className="font-medium text-sm group-hover:text-accent-blue transition-colors">{t.title}</span>
-                      </div>
-                      <span className="bg-slate-100 dark:bg-slate-700 text-xs px-2 py-1 rounded-full text-slate-600 dark:text-slate-300">{t.count}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </aside>
 
           <div className="col-span-1 lg:col-span-6 space-y-6">
@@ -164,33 +135,12 @@ export function FeedLayout(props: FeedLayoutProps) {
           </div>
 
           <aside className="hidden lg:block lg:col-span-3 space-y-6">
-            <div className="bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-xl p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="font-display font-bold text-lg flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Live Races</h4>
-                <Link href="/match" className="text-xs font-bold text-accent-blue hover:underline">View All</Link>
-              </div>
-              <div className="space-y-4">
-                {LIVE_RACES.map((r) => (
-                  <Link key={r.id} href="/match" className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer group">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${r.isTeal ? "bg-accent-teal/20 text-accent-teal" : "bg-accent-pink/20 text-accent-pink"}`}>#{r.id}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between"><span className="font-bold text-sm truncate">{r.name}</span><span className="text-xs text-slate-500">{Math.round(r.progress / 10 * r.total)}/{r.total}</span></div>
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${r.isTeal ? "bg-accent-teal" : "bg-accent-pink"}`} style={{ width: `${r.progress}%` }} />
-                      </div>
-                    </div>
-                    <span className="material-icons text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors text-lg">chevron_right</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-500 px-2">
               <Link href="#" className="hover:underline">About</Link>
               <Link href="#" className="hover:underline">Terms</Link>
               <Link href="#" className="hover:underline">Privacy</Link>
               <Link href="#" className="hover:underline">Docs</Link>
-              <span>© 2024 KeySocial</span>
+              <span>© 2025 KeySocial</span>
             </div>
           </aside>
         </div>

@@ -1,7 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_TAPESTRY_API_URL || "https://api.usetapestry.dev/api/v1";
 const SERVER_API_KEY = process.env.TAPESTRY_API_KEY || process.env.NEXT_PUBLIC_TAPESTRY_API_KEY || "";
 const NAMESPACE = process.env.NEXT_PUBLIC_APP_NAMESPACE || "keysocial";
-const CONTENT_NAMESPACE = "primitives";
+// No custom namespace for content — Tapestry uses its default.
 
 interface TapestryProfile {
   id: string;
@@ -66,6 +66,7 @@ interface TapestryContent {
     comments: number;
     likes: number;
   };
+  hasLiked?: boolean;
   createdAt?: string;
   profile?: TapestryProfile;
 }
@@ -264,13 +265,16 @@ export async function createContent(
   profileId: string,
   content: string,
   contentType: string = "text",
-  customProperties: { key: string; value: string }[] = []
+  extraProperties: { key: string; value: string }[] = []
 ): Promise<TapestryContent> {
   const id = `ks-${profileId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const properties = customProperties.length > 0
-    ? customProperties
-    : [{ key: "source", value: "keysocial" }];
+  const properties = [
+    { key: "source", value: "keysocial" },
+    { key: "text", value: content },
+    { key: "contentType", value: contentType },
+    ...extraProperties,
+  ];
 
   const res = await tapestryFetch("/contents/findOrCreate", {
     method: "POST",
@@ -282,7 +286,6 @@ export async function createContent(
       properties,
       blockchain: "SOLANA",
       execution: "FAST_UNCONFIRMED",
-      namespace: CONTENT_NAMESPACE,
     }),
   });
 
@@ -331,11 +334,14 @@ export async function recordMatchResult(
 
 export async function getContents(
   limit = 20,
-  offset = 0
+  offset = 0,
+  requestingProfileId?: string
 ): Promise<TapestryContent[]> {
-  const res = await tapestryFetch(
-    `/contents?limit=${limit}&offset=${offset}&namespace=${CONTENT_NAMESPACE}`
-  );
+  let url = `/contents?limit=${limit}&offset=${offset}`;
+  if (requestingProfileId) {
+    url += `&requestingProfileId=${encodeURIComponent(requestingProfileId)}`;
+  }
+  const res = await tapestryFetch(url);
   if (!res.ok) return [];
   const data = await res.json();
   const rawList = data.contents || data || [];
@@ -344,17 +350,31 @@ export async function getContents(
     const c = (item.content || item) as Record<string, unknown>;
     const ap = (item.authorProfile || {}) as Record<string, unknown>;
     const sc = (item.socialCounts || {}) as Record<string, unknown>;
+    const rpsi = (item.requestingProfileSocialInfo || {}) as Record<string, unknown>;
+
+    // Tapestry stores properties as flat keys on the content node
+    const text = (c.text || c.content || c.drop_name || c.title || "") as string;
+    const contentType = (c.contentType || c.type || "text") as string;
+
+    // Build a properties map from the flat content object
+    const props: Record<string, string> = {};
+    for (const [k, v] of Object.entries(c)) {
+      if (typeof v === "string" && !["id", "namespace", "externalLinkURL"].includes(k)) {
+        props[k] = v;
+      }
+    }
 
     return {
       id: (c.id as string) || "",
-      profileId: (c.creatorId || c.creator_user_id || ap.id || "") as string,
-      content: (c.content || c.drop_name || c.title || "") as string,
-      contentType: (c.contentType || c.type || "text") as string,
-      properties: (c.customProperties || c.properties || undefined) as Record<string, string> | undefined,
+      profileId: (ap.id || "") as string,
+      content: text,
+      contentType,
+      properties: Object.keys(props).length > 0 ? props : undefined,
       socialCounts: {
         likes: (sc.likeCount || sc.likes || 0) as number,
         comments: (sc.commentCount || sc.comments || 0) as number,
       },
+      hasLiked: rpsi.hasLiked === true,
       createdAt: c.created_at
         ? typeof c.created_at === "number"
           ? new Date(c.created_at as number).toISOString()
@@ -389,7 +409,7 @@ export async function likeContent(nodeId: string, profileId: string): Promise<vo
   const res = await tapestryFetch(`/likes/${nodeId}`, {
     method: "POST",
     body: JSON.stringify({
-      profileId,
+      startId: profileId,
       blockchain: "SOLANA",
       execution: "FAST_UNCONFIRMED",
     }),
@@ -402,7 +422,7 @@ export async function unlikeContent(nodeId: string, profileId: string): Promise<
   const res = await tapestryFetch(`/likes/${nodeId}`, {
     method: "DELETE",
     body: JSON.stringify({
-      profileId,
+      startId: profileId,
       blockchain: "SOLANA",
       execution: "FAST_UNCONFIRMED",
     }),
@@ -445,7 +465,63 @@ export async function getComments(
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return data.comments || data || [];
+  const rawList = data.comments || data || [];
+
+  return rawList.map((item: Record<string, unknown>) => {
+    const c = (item.comment || item) as Record<string, unknown>;
+    const author = (item.author || item.profile || {}) as Record<string, unknown>;
+
+    return {
+      id: (c.id as string) || `comment-${Math.random()}`,
+      profileId: (author.id as string) || "",
+      contentId,
+      text: (c.text as string) || "",
+      createdAt: c.created_at
+        ? typeof c.created_at === "number"
+          ? new Date(c.created_at as number).toISOString()
+          : String(c.created_at)
+        : new Date().toISOString(),
+      profile: author.username
+        ? {
+            id: (author.id as string) || "",
+            username: (author.username as string) || "",
+            bio: (author.bio as string) || "",
+            walletAddress: "",
+            namespace: (author.namespace as string) || "",
+            blockchain: "SOLANA",
+          }
+        : undefined,
+    } as TapestryComment;
+  });
+}
+
+// ========================
+// DELETE OPERATIONS
+// ========================
+
+export async function deleteContent(contentId: string): Promise<void> {
+  const res = await tapestryFetch("/contents/delete", {
+    method: "POST",
+    body: JSON.stringify({
+      id: contentId,
+      blockchain: "SOLANA",
+      execution: "FAST_UNCONFIRMED",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to delete content");
+}
+
+export async function deleteComment(commentId: string): Promise<void> {
+  const res = await tapestryFetch(`/comments/${commentId}`, {
+    method: "DELETE",
+    body: JSON.stringify({
+      blockchain: "SOLANA",
+      execution: "FAST_UNCONFIRMED",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to delete comment");
 }
 
 // ========================

@@ -1,12 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import AppHeader from "@/components/layout/AppHeader";
+import { getContents, type TapestryContent } from "@/lib/tapestry";
+
+function computeMatchStats(contents: TapestryContent[]) {
+  const playerIds = new Set<string>();
+  let totalPool = 0;
+  for (const tc of contents) {
+    if (tc.properties?.type !== "match_result") continue;
+    if (tc.properties.winnerId) playerIds.add(tc.properties.winnerId);
+    if (tc.properties.loserId) playerIds.add(tc.properties.loserId);
+    totalPool += parseFloat(tc.properties.stakeAmount || "0") || 0;
+  }
+  return { activeRacers: playerIds.size, totalPool };
+}
 
 export default function MatchLobbyPage() {
   const [stake, setStake] = useState(1.0);
   const potentialWin = Math.max(0, stake * 2 * 0.95);
+  const [matchStats, setMatchStats] = useState({ activeRacers: 0, totalPool: 0 });
+
+  useEffect(() => {
+    getContents(100, 0).then((contents) => {
+      setMatchStats(computeMatchStats(contents));
+    }).catch(() => {});
+  }, []);
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-sans min-h-screen flex flex-col transition-colors duration-300">
@@ -57,8 +77,8 @@ export default function MatchLobbyPage() {
               Stake SOL, type fast, and take the pot. Join the lobby and prove you&apos;re the fastest fingers on-chain.
             </p>
             <div className="grid grid-cols-2 gap-4 mt-8">
-              <StatSmall label="Active Racers" value="1,204" />
-              <StatSmall label="Total Pool" value="450 SOL" />
+              <StatSmall label="Active Racers" value={matchStats.activeRacers.toLocaleString()} />
+              <StatSmall label="Total Pool" value={`${matchStats.totalPool.toFixed(1)} SOL`} />
             </div>
           </div>
 
@@ -129,7 +149,7 @@ export default function MatchLobbyPage() {
               </div>
 
               <Link
-                href="/game?mode=create"
+                href={`/game?mode=create&stake=${stake}`}
                 className="w-full py-4 bg-primary hover:bg-[#B8D43B] text-black font-extrabold text-lg rounded-xl shadow-lg hover:shadow-[0_0_15px_rgba(212,232,98,0.5)] transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <span>Confirm Stake &amp; Create Room</span>

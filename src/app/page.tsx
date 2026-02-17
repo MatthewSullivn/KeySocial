@@ -159,7 +159,7 @@ export default function LandingPageV2() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <FeatureCard
                 title="Compete for Glory"
-                desc="Join daily tournaments and race against the best typists worldwide. Secure your spot on the immutable leaderboard."
+                desc="Race against the best typists worldwide and climb the immutable leaderboard."
                 icon="emoji_events"
                 gradient="from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30"
                 iconColor="text-orange-500"

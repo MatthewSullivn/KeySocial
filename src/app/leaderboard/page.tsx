@@ -16,41 +16,7 @@ interface LeaderboardEntry {
   totalEarnings: number;
 }
 
-interface LocalMatchResult {
-  winnerId: string;
-  loserId: string;
-  winnerUsername: string;
-  loserUsername: string;
-  winnerWPM: number;
-  loserWPM: number;
-  winnerAccuracy: number;
-  loserAccuracy: number;
-  duration: number;
-  stakeAmount: number;
-  timestamp?: string;
-}
-
-function loadLocalMatches(): LocalMatchResult[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem("ks_match_history");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function loadBestWPM(): number {
-  if (typeof window === "undefined") return 0;
-  try {
-    return parseInt(localStorage.getItem("ks_best_wpm") || "0", 10);
-  } catch {
-    return 0;
-  }
-}
-
 function aggregateMatches(
-  localMatches: LocalMatchResult[],
   tapestryContents: TapestryContent[]
 ): Map<string, LeaderboardEntry> {
   const playerMap = new Map<string, LeaderboardEntry>();
@@ -109,22 +75,6 @@ function aggregateMatches(
     }
   }
 
-  // Process local matches
-  for (const m of localMatches) {
-    processMatch(
-      m.winnerId,
-      m.loserId,
-      m.winnerUsername,
-      m.loserUsername,
-      m.winnerWPM,
-      m.loserWPM,
-      m.winnerAccuracy,
-      m.loserAccuracy,
-      m.stakeAmount
-    );
-  }
-
-  // Process Tapestry match results
   for (const content of tapestryContents) {
     const props = content.properties || {};
     if (props.type !== "match_result") continue;
@@ -156,15 +106,12 @@ export default function LeaderboardPage() {
   async function loadLeaderboard() {
     setLoading(true);
     try {
-      const localMatches = loadLocalMatches();
-      const bestWPM = loadBestWPM();
-
       let tapestryContents: TapestryContent[] = [];
       try {
         tapestryContents = await getContents(100, 0);
       } catch {}
 
-      const playerMap = aggregateMatches(localMatches, tapestryContents);
+      const playerMap = aggregateMatches(tapestryContents);
 
       // Ensure current user is on the leaderboard even with 0 matches
       if (profile) {
@@ -175,18 +122,17 @@ export default function LeaderboardPage() {
             profileId: pid,
             wins: 0,
             losses: 0,
-            bestWPM: bestWPM,
+            bestWPM: 0,
             avgAccuracy: 0,
             totalEarnings: 0,
           });
         } else {
           const existing = playerMap.get(pid)!;
-          existing.bestWPM = Math.max(existing.bestWPM, bestWPM);
           existing.username = profile.username || existing.username;
         }
       }
 
-      // Filter out bot entries (AI opponent)
+      // Filter out bot entries
       const leaderboard = Array.from(playerMap.values()).filter(
         (e) => !e.profileId.startsWith("ai-")
       );
@@ -207,7 +153,6 @@ export default function LeaderboardPage() {
   });
 
   const top3 = sortedEntries.slice(0, 3);
-  const rest = sortedEntries.slice(3, 30);
   const myId = profile?.id || profile?.username;
 
   return (

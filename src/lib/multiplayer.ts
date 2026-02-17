@@ -28,11 +28,22 @@ export interface GameStartPayload {
   words: WordPrompt[];
   difficulty: string;
   trackLength: number;
+  stakeAmount: number;
+}
+
+export interface StakeInfoPayload {
+  stakeAmount: number;
+  escrowPubkey: string;
+}
+
+export interface DepositConfirmedPayload {
+  playerId: string;
+  txSignature: string;
 }
 
 export interface RoomEvent {
-  type: "game_start" | "progress" | "player_finished" | "player_left";
-  payload: GameStartPayload | ProgressPayload | { playerId: string };
+  type: "game_start" | "progress" | "player_finished" | "player_left" | "stake_info" | "deposit_confirmed";
+  payload: GameStartPayload | ProgressPayload | { playerId: string } | StakeInfoPayload | DepositConfirmedPayload;
 }
 
 // ── Room code generation ──
@@ -67,6 +78,8 @@ export function createRoomChannel(
     onGameStart: (payload: GameStartPayload) => void;
     onProgress: (payload: ProgressPayload) => void;
     onPlayerFinished: (playerId: string) => void;
+    onStakeInfo?: (payload: StakeInfoPayload) => void;
+    onDepositConfirmed?: (payload: DepositConfirmedPayload) => void;
   }
 ): RealtimeChannel {
   cleanupChannel();
@@ -103,6 +116,12 @@ export function createRoomChannel(
       case "player_finished":
         callbacks.onPlayerFinished((evt.payload as { playerId: string }).playerId);
         break;
+      case "stake_info":
+        callbacks.onStakeInfo?.(evt.payload as StakeInfoPayload);
+        break;
+      case "deposit_confirmed":
+        callbacks.onDepositConfirmed?.(evt.payload as DepositConfirmedPayload);
+        break;
       default:
         break;
     }
@@ -127,16 +146,43 @@ export function createRoomChannel(
 export function broadcastGameStart(
   channel: RealtimeChannel,
   difficulty: string,
-  trackLength: number
+  trackLength: number,
+  stakeAmount: number = 0
 ) {
   const words = generateWordSequence(difficulty, trackLength + 10);
-  const payload: GameStartPayload = { words, difficulty, trackLength };
+  const payload: GameStartPayload = { words, difficulty, trackLength, stakeAmount };
   channel.send({
     type: "broadcast",
     event: "room_event",
     payload: { type: "game_start", payload } as RoomEvent,
   });
   return payload;
+}
+
+export function broadcastStakeInfo(
+  channel: RealtimeChannel,
+  stakeAmount: number,
+  escrowPubkey: string
+) {
+  const payload: StakeInfoPayload = { stakeAmount, escrowPubkey };
+  channel.send({
+    type: "broadcast",
+    event: "room_event",
+    payload: { type: "stake_info", payload } as RoomEvent,
+  });
+}
+
+export function broadcastDepositConfirmed(
+  channel: RealtimeChannel,
+  playerId: string,
+  txSignature: string
+) {
+  const payload: DepositConfirmedPayload = { playerId, txSignature };
+  channel.send({
+    type: "broadcast",
+    event: "room_event",
+    payload: { type: "deposit_confirmed", payload } as RoomEvent,
+  });
 }
 
 export function broadcastProgress(

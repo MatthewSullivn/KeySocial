@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { createContent } from "@/lib/tapestry";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { createContent, getContents, getFollowing, deleteContent, type TapestryContent } from "@/lib/tapestry";
 import { useUserStore } from "@/store/user-store";
 import { toast } from "sonner";
 import { FeedLayout } from "./FeedLayout";
@@ -23,75 +23,64 @@ export interface LocalPost {
   createdAt: string;
   likes: number;
   comments: number;
+  hasLiked?: boolean;
   postType?: PendingPostType;
   meta?: PendingMeta;
 }
 
-function loadLocalPosts(): LocalPost[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem("ks_local_posts");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+function tapestryContentToLocalPost(tc: TapestryContent): LocalPost | null {
+  if (tc.properties?.type === "match_result") return null;
+  const text = tc.content || tc.properties?.text || "";
+  if (!text.trim()) return null;
+
+  const postType = (tc.properties?.postType as PendingPostType) || "normal";
+  const meta: PendingMeta = {};
+  if (tc.properties?.wpm) meta.wpm = parseInt(tc.properties.wpm, 10);
+  if (tc.properties?.challengerUsername) meta.challengerUsername = tc.properties.challengerUsername;
+
+  return {
+    id: tc.id,
+    author: tc.profile?.username || tc.profileId || "Unknown",
+    handle: `@${tc.profile?.username || tc.profileId || "unknown"}`,
+    content: text,
+    createdAt: tc.createdAt || new Date().toISOString(),
+    likes: tc.socialCounts?.likes || 0,
+    comments: tc.socialCounts?.comments || 0,
+    hasLiked: tc.hasLiked || false,
+    postType,
+    meta: Object.keys(meta).length > 0 ? meta : undefined,
+  };
 }
 
-function saveLocalPosts(posts: LocalPost[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem("ks_local_posts", JSON.stringify(posts));
-  } catch {}
-}
+function computeStatsFromContents(
+  contents: TapestryContent[],
+  profileId: string
+): { wpmAvg: number; wins: number; bestWpm: number } {
+  let totalWpm = 0;
+  let matchCount = 0;
+  let wins = 0;
+  let bestWpm = 0;
 
-function getBestWPM(): number {
-  if (typeof window === "undefined") return 0;
-  try {
-    const raw = localStorage.getItem("ks_best_wpm");
-    return raw ? parseInt(raw, 10) : 0;
-  } catch {
-    return 0;
+  for (const tc of contents) {
+    if (tc.properties?.type !== "match_result") continue;
+    matchCount++;
+    const isWinner = tc.properties.winnerId === profileId;
+    const wpm = parseInt(isWinner ? tc.properties.winnerWPM : tc.properties.loserWPM, 10) || 0;
+    totalWpm += wpm;
+    if (isWinner) wins++;
+    if (wpm > bestWpm) bestWpm = wpm;
   }
-}
 
-function loadStats(): { wpmAvg: number; wins: number } {
-  if (typeof window === "undefined") return { wpmAvg: 0, wins: 0 };
-  try {
-    const raw = localStorage.getItem("ks_match_history");
-    if (!raw) return { wpmAvg: 0, wins: 0 };
-    const history = JSON.parse(raw) as Array<{
-      winnerId: string;
-      winnerWPM: number;
-      loserWPM: number;
-      loserId: string;
-    }>;
-    if (history.length === 0) return { wpmAvg: 0, wins: 0 };
-
-    let totalWpm = 0;
-    let wins = 0;
-    const pid =
-      useUserStore.getState().profile?.id ||
-      useUserStore.getState().profile?.username ||
-      "";
-
-    for (const m of history) {
-      const isWinner = m.winnerId === pid;
-      totalWpm += isWinner ? m.winnerWPM : m.loserWPM;
-      if (isWinner) wins++;
-    }
-
-    return {
-      wpmAvg: history.length > 0 ? Math.round(totalWpm / history.length) : 0,
-      wins,
-    };
-  } catch {
-    return { wpmAvg: 0, wins: 0 };
-  }
+  return {
+    wpmAvg: matchCount > 0 ? Math.round(totalWpm / matchCount) : 0,
+    wins,
+    bestWpm,
+  };
 }
 
 export default function FeedView() {
   const { profile } = useUserStore();
-  const [localPosts, setLocalPosts] = useState<LocalPost[]>([]);
+  const [posts, setPosts] = useState<LocalPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FeedFilter>("global");
   const [postText, setPostText] = useState("");
@@ -99,12 +88,61 @@ export default function FeedView() {
   const [pendingType, setPendingType] = useState<PendingPostType>("normal");
   const [pendingMeta, setPendingMeta] = useState<PendingMeta>({});
   const [stats, setStats] = useState({ wpmAvg: 0, wins: 0 });
+  const [bestWpm, setBestWpm] = useState(0);
+
+  const followingSetRef = useRef<Set<string> | null>(null);
+
+  const loadPosts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const pid = profile?.id || profile?.username || "";
+      const contents = await getContents(50, 0, pid || undefined);
+      const computed = computeStatsFromContents(contents, pid);
+      setStats({ wpmAvg: computed.wpmAvg, wins: computed.wins });
+      setBestWpm(computed.bestWpm);
+
+      // Convert posts (non-match-result content)
+      const converted = contents
+        .map(tapestryContentToLocalPost)
+        .filter((p): p is LocalPost => p !== null);
+      setPosts(converted);
+    } catch (err) {
+      console.error("Failed to load posts from API:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [profile]);
 
   useEffect(() => {
-    setLocalPosts(loadLocalPosts());
-    setStats(loadStats());
-    setLoading(false);
-  }, []);
+    loadPosts();
+  }, [loadPosts]);
+
+  // Fetch following list when switching to "following" filter
+  useEffect(() => {
+    if (filter !== "following" || !profile) return;
+    const pid = profile.id || profile.username;
+    if (!pid) return;
+    getFollowing(pid, 200, 0)
+      .then((list) => {
+        const set = new Set(list.map((p) => p.username).filter(Boolean));
+        followingSetRef.current = set;
+        // Force re-render by bumping posts
+        setPosts((prev) => [...prev]);
+      })
+      .catch(() => {});
+  }, [filter, profile]);
+
+  const filteredPosts = useMemo(() => {
+    if (filter === "following") {
+      const set = followingSetRef.current;
+      if (!set) return [];
+      return posts.filter((p) => set.has(p.author));
+    }
+    if (filter === "top") {
+      return [...posts].sort((a, b) => b.likes - a.likes);
+    }
+    return posts;
+  }, [posts, filter]);
 
   const clearPending = useCallback(() => {
     setPendingType("normal");
@@ -115,33 +153,34 @@ export default function FeedView() {
     if (!profile || !postText.trim() || posting) return;
     setPosting(true);
     try {
-      const newPost: LocalPost = {
-        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        author: profile.username || "You",
-        handle: `@${profile.username || "user"}`,
-        content: postText.trim(),
-        createdAt: new Date().toISOString(),
-        likes: 0,
-        comments: 0,
-        postType: pendingType,
-        meta: pendingType !== "normal" ? pendingMeta : undefined,
-      };
+      const profileId = profile.id || profile.username;
 
-      const updated = [newPost, ...localPosts];
-      setLocalPosts(updated);
-      saveLocalPosts(updated);
+      const extraProps: { key: string; value: string }[] = [];
+      if (pendingType !== "normal") {
+        extraProps.push({ key: "postType", value: pendingType });
+      }
+      if (pendingMeta.wpm != null) {
+        extraProps.push({ key: "wpm", value: String(pendingMeta.wpm) });
+      }
+      if (pendingMeta.challengerUsername) {
+        extraProps.push({ key: "challengerUsername", value: pendingMeta.challengerUsername });
+      }
+
+      await createContent(profileId, postText.trim(), "text", extraProps);
+
       setPostText("");
       clearPending();
       toast.success("Posted!");
 
-      createContent(profile.id || profile.username, postText.trim()).catch(() => {});
-    } catch (e) {
-      toast.error("Failed to post");
-      console.error(e);
+      await loadPosts();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      toast.error(`Failed to post: ${msg}`);
+      console.error("Post error:", e);
     } finally {
       setPosting(false);
     }
-  }, [profile, postText, posting, localPosts, pendingType, pendingMeta, clearPending]);
+  }, [profile, postText, posting, pendingType, pendingMeta, clearPending, loadPosts]);
 
   const handleChallenge = useCallback(() => {
     if (!profile) return;
@@ -154,16 +193,15 @@ export default function FeedView() {
 
   const handleFlexWPM = useCallback(() => {
     if (!profile) return;
-    const best = getBestWPM();
-    if (best <= 0) {
+    if (bestWpm <= 0) {
       toast.error("Play a game first to set your personal best!");
       return;
     }
     setPendingType("flex");
-    setPendingMeta({ wpm: best });
+    setPendingMeta({ wpm: bestWpm });
     setPostText("Check out my typing speed. Can anyone beat this?");
     document.getElementById("compose")?.scrollIntoView({ behavior: "smooth" });
-  }, [profile]);
+  }, [profile, bestWpm]);
 
   const handleCancelPending = useCallback(() => {
     clearPending();
@@ -171,13 +209,18 @@ export default function FeedView() {
   }, [clearPending]);
 
   const handleDeletePost = useCallback(
-    (postId: string) => {
-      const updated = localPosts.filter((p) => p.id !== postId);
-      setLocalPosts(updated);
-      saveLocalPosts(updated);
-      toast.success("Post deleted");
+    async (postId: string) => {
+      const backup = posts;
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      try {
+        await deleteContent(postId);
+        toast.success("Post deleted");
+      } catch {
+        setPosts(backup);
+        toast.error("Failed to delete post");
+      }
     },
-    [localPosts]
+    [posts]
   );
 
   return (
@@ -201,7 +244,7 @@ export default function FeedView() {
       stats={stats}
       feedContent={
         <FeedContent
-          localPosts={localPosts}
+          localPosts={filteredPosts}
           profile={profile}
           onDeletePost={handleDeletePost}
         />

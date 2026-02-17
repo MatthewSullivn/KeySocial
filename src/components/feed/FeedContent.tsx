@@ -25,7 +25,8 @@ interface FeedContentProps {
   onDeletePost?: (postId: string) => void;
 }
 
-export function FeedContent({ localPosts, onDeletePost }: FeedContentProps) {
+export function FeedContent({ localPosts, profile, onDeletePost }: FeedContentProps) {
+  const currentUsername = profile?.username;
   return (
     <div className="space-y-6">
       {localPosts.map((post) => (
@@ -38,7 +39,8 @@ export function FeedContent({ localPosts, onDeletePost }: FeedContentProps) {
           content={post.content}
           likes={post.likes}
           comments={post.comments}
-          onDelete={onDeletePost ? () => onDeletePost(post.id) : undefined}
+          hasLiked={post.hasLiked}
+          onDelete={onDeletePost && currentUsername && post.author === currentUsername ? () => onDeletePost(post.id) : undefined}
           postType={post.postType}
           meta={post.meta}
         />

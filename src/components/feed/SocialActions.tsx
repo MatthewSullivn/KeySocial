@@ -1,55 +1,29 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useUserStore } from "@/store/user-store";
-import { likeContent, unlikeContent, createComment } from "@/lib/tapestry";
+import {
+  likeContent,
+  unlikeContent,
+  createComment,
+  getComments,
+  deleteComment,
+  type TapestryComment,
+} from "@/lib/tapestry";
 import { toast } from "sonner";
 
-interface LocalComment {
+interface DisplayComment {
   id: string;
   author: string;
   text: string;
   createdAt: string;
 }
 
-function loadLikedMap(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem("ks_liked_posts_v2");
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveLikedMap(m: Record<string, number>) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem("ks_liked_posts_v2", JSON.stringify(m));
-  } catch {}
-}
-
-function loadLocalComments(postId: string): LocalComment[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(`ks_comments_${postId}`);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalComments(postId: string, comments: LocalComment[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(`ks_comments_${postId}`, JSON.stringify(comments));
-  } catch {}
-}
-
 interface SocialActionsProps {
   postId: string;
   initialLikes: number;
   initialComments: number;
+  initialHasLiked?: boolean;
   showRepost?: boolean;
   showShare?: boolean;
 }
@@ -58,52 +32,59 @@ export function SocialActions({
   postId,
   initialLikes,
   initialComments,
+  initialHasLiked = false,
   showRepost = false,
   showShare = false,
 }: SocialActionsProps) {
   const { profile } = useUserStore();
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(initialHasLiked);
   const [likeCount, setLikeCount] = useState(initialLikes);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [comments, setComments] = useState<LocalComment[]>([]);
+  const [comments, setComments] = useState<DisplayComment[]>([]);
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const likedMap = loadLikedMap();
-    if (postId in likedMap) {
-      setLiked(true);
-      setLikeCount(likedMap[postId]);
+  const currentUsername = profile?.username;
+
+  const loadComments = useCallback(async () => {
+    try {
+      const tapestryComments = await getComments(postId, 50, 0);
+      const mapped: DisplayComment[] = tapestryComments.map((c: TapestryComment) => ({
+        id: c.id,
+        author: c.profile?.username || c.profileId || "Unknown",
+        text: c.text,
+        createdAt: c.createdAt || new Date().toISOString(),
+      }));
+      setComments(mapped);
+      setCommentsLoaded(true);
+    } catch {
+      setCommentsLoaded(true);
     }
-    setComments(loadLocalComments(postId));
   }, [postId]);
 
-  const totalComments = initialComments + comments.length;
-  const currentUsername = profile?.username;
+  // Load comments from Tapestry when comments section is opened
+  useEffect(() => {
+    if (commentsOpen && !commentsLoaded) {
+      loadComments();
+    }
+  }, [commentsOpen, commentsLoaded, loadComments]);
 
   function handleLike() {
     const profileId = profile?.id || profile?.username;
-    const likedMap = loadLikedMap();
+    if (!profileId) return;
 
     if (liked) {
       const newCount = Math.max(0, likeCount - 1);
       setLiked(false);
       setLikeCount(newCount);
-      delete likedMap[postId];
-      saveLikedMap(likedMap);
-      if (profileId) {
-        unlikeContent(postId, profileId).catch(() => {});
-      }
+      unlikeContent(postId, profileId).catch(() => {});
     } else {
       const newCount = likeCount + 1;
       setLiked(true);
       setLikeCount(newCount);
-      likedMap[postId] = newCount;
-      saveLikedMap(likedMap);
-      if (profileId) {
-        likeContent(postId, profileId).catch(() => {});
-      }
+      likeContent(postId, profileId).catch(() => {});
     }
   }
 
@@ -118,32 +99,31 @@ export function SocialActions({
     if (!commentText.trim() || submitting) return;
     const author = profile?.username || "You";
     const profileId = profile?.id || profile?.username;
+    if (!profileId) return;
 
     setSubmitting(true);
-    const newComment: LocalComment = {
-      id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      author,
-      text: commentText.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    const updated = [...comments, newComment];
-    setComments(updated);
-    saveLocalComments(postId, updated);
-    setCommentText("");
-    toast.success("Comment added!");
-
-    if (profileId) {
-      createComment(profileId, postId, newComment.text).catch(() => {});
+    try {
+      await createComment(profileId, postId, commentText.trim());
+      setCommentText("");
+      toast.success("Comment added!");
+      await loadComments();
+    } catch {
+      toast.error("Failed to add comment");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
-  function handleDeleteComment(commentId: string) {
-    const updated = comments.filter((c) => c.id !== commentId);
-    setComments(updated);
-    saveLocalComments(postId, updated);
-    toast.success("Comment deleted");
+  async function handleDeleteComment(commentId: string) {
+    const backup = comments;
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    try {
+      await deleteComment(commentId);
+      toast.success("Comment deleted");
+    } catch {
+      setComments(backup);
+      toast.error("Failed to delete comment");
+    }
   }
 
   function formatTime(dateStr: string) {
@@ -175,7 +155,7 @@ export function SocialActions({
           <span className="material-icons text-xl group-hover:scale-110 transition-transform">
             {commentsOpen ? "chat_bubble" : "chat_bubble_outline"}
           </span>
-          <span className="text-sm font-medium">{totalComments}</span>
+          <span className="text-sm font-medium">{commentsOpen ? comments.length : initialComments}</span>
         </button>
         {showRepost && (
           <button type="button" className="flex items-center gap-2 hover:text-accent-teal transition-colors group">
@@ -192,10 +172,13 @@ export function SocialActions({
 
       {commentsOpen && (
         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-          {comments.length > 0 && (
+          {!commentsLoaded && (
+            <p className="text-sm text-slate-400 text-center py-2">Loading comments...</p>
+          )}
+          {commentsLoaded && comments.length > 0 && (
             <div className="space-y-3 max-h-60 overflow-y-auto">
-              {comments.map((c) => (
-                <div key={c.id} className="flex gap-3 group/comment">
+              {comments.map((c, idx) => (
+                <div key={c.id || `comment-${idx}`} className="flex gap-3 group/comment">
                   <div className="w-7 h-7 rounded-md bg-primary/20 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
                     {c.author[0]?.toUpperCase()}
                   </div>
@@ -220,7 +203,7 @@ export function SocialActions({
               ))}
             </div>
           )}
-          {comments.length === 0 && (
+          {commentsLoaded && comments.length === 0 && (
             <p className="text-sm text-slate-400 text-center py-2">No comments yet. Be the first!</p>
           )}
           <div className="flex gap-2 items-center">

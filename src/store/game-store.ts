@@ -55,7 +55,8 @@ interface GameStore {
     words: WordPrompt[],
     difficulty: string,
     trackLength: number,
-    roomCode: string
+    roomCode: string,
+    stakeAmount?: number
   ) => void;
   setMatchMode: (mode: "bot" | "multiplayer") => void;
   setRoomCode: (code: string | null) => void;
@@ -116,7 +117,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
-  initMultiplayerGame: (playerId, playerUsername, opponentUsername, words, difficulty, trackLength, roomCode) => {
+  initMultiplayerGame: (playerId, playerUsername, opponentUsername, words, difficulty, trackLength, roomCode, stakeAmount = 0) => {
     const config = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.medium;
     const configWithTrack = { ...config, trackLength };
 
@@ -131,9 +132,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentWord: words[0] || null,
       wordHistory: [],
       upcomingWords: words.slice(1),
-      stakeAmount: 0,
+      stakeAmount,
       matchResult: null,
-      matchType: "ranked",
+      matchType: stakeAmount > 0 ? "ranked" : "practice",
       matchMode: "multiplayer",
       roomCode,
     });
