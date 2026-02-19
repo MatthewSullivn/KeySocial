@@ -13,6 +13,7 @@ import {
   unfollowProfile,
   checkFollowStatus,
   getContents,
+  updateProfile,
   type TapestryProfile,
   type TapestryContent,
 } from "@/lib/tapestry";
@@ -23,8 +24,9 @@ import AppHeader from "@/components/layout/AppHeader";
 export default function ProfilePage() {
   const params = useParams();
   const username = params.username as string;
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
   const { profile: myProfile } = useUserStore();
+  const connectedWallet = publicKey?.toBase58() || "";
 
   const [profile, setProfile] = useState<TapestryProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,14 @@ export default function ProfilePage() {
   const [followingList, setFollowingList] = useState<TapestryProfile[]>([]);
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showNftPicker, setShowNftPicker] = useState(false);
+  const [editUsername, setEditUsername] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editImage, setEditImage] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [nftList, setNftList] = useState<{ image: string; name: string }[]>([]);
+  const [nftLoading, setNftLoading] = useState(false);
   const [stats, setStats] = useState({
     wins: 0,
     losses: 0,
@@ -141,11 +151,75 @@ export default function ProfilePage() {
     });
   }
 
+  function openEditModal() {
+    if (!profile) return;
+    setEditUsername(profile.username || "");
+    setEditBio(profile.bio || "");
+    setEditImage(profile.image || "");
+    setShowNftPicker(false);
+    setNftList([]);
+    setShowEdit(true);
+  }
+
+  async function handleLoadNfts() {
+    const wallet = connectedWallet || profile?.walletAddress || myProfile?.walletAddress;
+    if (!wallet) {
+      toast.error("Connect your wallet first to load NFTs");
+      return;
+    }
+    setNftLoading(true);
+    setNftList([]);
+    try {
+      const res = await fetch(`/api/nfts?wallet=${encodeURIComponent(wallet)}`);
+      const data = await res.json();
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+      if (data.nfts?.length) {
+        setNftList(data.nfts);
+        setShowNftPicker(true);
+      } else {
+        toast.info(data.message || "No NFTs found. Add HELIUS_API_KEY to .env and restart the dev server.");
+      }
+    } catch {
+      toast.error("Failed to load NFTs");
+    } finally {
+      setNftLoading(false);
+    }
+  }
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile || !myProfile || !isOwnProfile) return;
+    const pid = profile.id || profile.username;
+    if (!editUsername.trim()) {
+      toast.error("Username is required");
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const updated = await updateProfile(pid, {
+        username: editUsername.trim(),
+        bio: editBio.trim() || undefined,
+        image: editImage.trim() || undefined,
+      });
+      setProfile(updated);
+      useUserStore.getState().setProfile(updated);
+      toast.success("Profile updated!");
+      setShowEdit(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-bg-primary text-white flex flex-col">
         <AppHeader />
-        <div className="flex-grow flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-h-[50vh]">
           <div className="text-gray-400 flex items-center gap-2">
             <span className="material-icons animate-spin">progress_activity</span>
             Loading profile…
@@ -159,7 +233,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-bg-primary text-white flex flex-col">
         <AppHeader />
-        <div className="flex-grow flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <div className="w-20 h-20 bg-purple-500/15 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-purple-500/25">
               <span className="material-icons text-4xl text-purple-400">person_off</span>
@@ -188,7 +262,16 @@ export default function ProfilePage() {
         <div className="flex flex-col md:flex-row gap-8 items-start mb-16">
           <div className="flex-shrink-0 relative group">
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 shadow-glow-md overflow-hidden relative z-10 flex items-center justify-center text-white text-5xl font-black">
-              {profile.username?.[0]?.toUpperCase() || "?"}
+              {profile.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.image}
+                  alt={profile.username}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                profile.username?.[0]?.toUpperCase() || "?"
+              )}
             </div>
             <div className="absolute bottom-2 right-2 z-20 w-6 h-6 bg-accent-green border-4 border-bg-primary rounded-full"></div>
           </div>
@@ -207,7 +290,16 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-3 items-center flex-wrap">
+                {isOwnProfile && (
+                  <button
+                    onClick={openEditModal}
+                    className="px-5 py-2 rounded-xl font-bold text-sm bg-bg-elevated border border-purple-500/20 text-gray-300 hover:bg-bg-hover transition-all flex items-center gap-1.5"
+                  >
+                    <span className="material-icons text-lg">edit</span>
+                    Edit profile
+                  </button>
+                )}
                 {!connected ? (
                   <span className="text-sm text-gray-500">Connect wallet to follow</span>
                 ) : !isOwnProfile ? (
@@ -262,6 +354,106 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Edit profile modal */}
+        {showEdit && profile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => !editSaving && setShowEdit(false)}>
+            <div className="bg-bg-card rounded-2xl border border-purple-500/15 w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-purple-500/10">
+                <h3 className="font-display font-bold text-lg">Edit profile</h3>
+                <button type="button" onClick={() => !editSaving && setShowEdit(false)} className="text-gray-500 hover:text-white transition-colors">
+                  <span className="material-icons">close</span>
+                </button>
+              </div>
+              <form onSubmit={handleSaveProfile} className="flex flex-col overflow-y-auto flex-1 p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-400 mb-1">Username</label>
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-bg-elevated border border-purple-500/15 text-white placeholder:text-gray-500 focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/30 outline-none"
+                    placeholder="your_username"
+                    required
+                    maxLength={20}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-400 mb-1">Bio</label>
+                  <textarea
+                    value={editBio}
+                    onChange={(e) => setEditBio(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-2.5 rounded-xl bg-bg-elevated border border-purple-500/15 text-white placeholder:text-gray-500 focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/30 outline-none resize-none"
+                    placeholder="Tell the community about yourself..."
+                    maxLength={160}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{editBio.length}/160</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-400 mb-1">Profile image URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={editImage}
+                      onChange={(e) => setEditImage(e.target.value)}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-bg-elevated border border-purple-500/15 text-white placeholder:text-gray-500 focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/30 outline-none"
+                      placeholder="https://..."
+                    />
+                    <button
+                      type="button"
+                      onClick={handleLoadNfts}
+                      disabled={nftLoading}
+                      className="px-4 py-2.5 rounded-xl bg-purple-500/15 border border-purple-500/25 text-purple-300 text-sm font-semibold hover:bg-purple-500/25 transition-colors disabled:opacity-50 shrink-0"
+                    >
+                      {nftLoading ? "…" : "Use NFT"}
+                    </button>
+                  </div>
+                  {editImage && (
+                    <div className="mt-2 w-16 h-16 rounded-xl overflow-hidden bg-bg-elevated border border-purple-500/10">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={editImage} alt="Preview" className="w-full h-full object-cover" onError={() => setEditImage("")} />
+                    </div>
+                  )}
+                </div>
+                {showNftPicker && nftList.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 mb-2">Pick an NFT from your wallet</p>
+                    <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                      {nftList.map((nft, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => { setEditImage(nft.image); setShowNftPicker(false); }}
+                          className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-purple-500/50 focus:border-purple-500 transition-colors"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => !editSaving && setShowEdit(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-purple-500/20 text-gray-300 font-semibold hover:bg-bg-elevated transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editSaving}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {editSaving ? (<><span className="material-icons animate-spin text-lg">progress_activity</span> Saving…</>) : "Save"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Followers / Following modal */}
         {(showFollowers || showFollowing) && (

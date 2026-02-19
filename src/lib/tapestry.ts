@@ -162,7 +162,8 @@ export async function updateProfile(
   });
 
   if (!res.ok) throw new Error("Failed to update profile");
-  return res.json();
+  const data = await res.json();
+  return unwrapProfile(data);
 }
 
 export async function getProfileByWallet(walletAddress: string): Promise<TapestryProfile | null> {
