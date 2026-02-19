@@ -62,7 +62,6 @@ function GamePageInner() {
   const [lastResult, setLastResult] = useState<"correct" | "wrong" | null>(null);
   const [showSetup, setShowSetup] = useState(true);
 
-  // Reset game state when navigating to this page fresh (e.g. from feed bot cards)
   const didResetOnMount = useRef(false);
   useEffect(() => {
     if (didResetOnMount.current) return;
@@ -82,7 +81,6 @@ function GamePageInner() {
   const broadcastThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mpChannelRef = useRef<RealtimeChannel | null>(null);
 
-  // Handle keyboard input
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (gameState !== "racing") return;
@@ -114,20 +112,17 @@ function GamePageInner() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onKeyDown]);
 
-  // Countdown & game timer
   useEffect(() => {
     if (gameState === "countdown" || gameState === "racing") {
       tickIntervalRef.current = setInterval(() => {
         tick();
       }, 1000);
     }
-
     return () => {
       if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
     };
   }, [gameState, tick]);
 
-  // AI opponent moves (bot mode only)
   useEffect(() => {
     if (matchMode !== "bot") return;
     if (gameState === "racing") {
@@ -144,13 +139,11 @@ function GamePageInner() {
       };
       scheduleAIMove();
     }
-
     return () => {
       if (opponentIntervalRef.current) clearTimeout(opponentIntervalRef.current);
     };
   }, [gameState, updateOpponent, matchMode]);
 
-  // Multiplayer: broadcast player progress (throttled ~200ms)
   useEffect(() => {
     if (matchMode !== "multiplayer" || gameState !== "racing") return;
     if (!mpChannelRef.current) return;
@@ -181,7 +174,6 @@ function GamePageInner() {
     };
   }, [gameState, matchMode, player.correctHits, player.streak, player.progress]);
 
-  // Multiplayer: broadcast finish IMMEDIATELY when player finishes (separate from throttled progress)
   const didBroadcastFinish = useRef(false);
   useEffect(() => {
     if (matchMode !== "multiplayer") return;
@@ -190,11 +182,8 @@ function GamePageInner() {
     if (!channel) return;
 
     didBroadcastFinish.current = true;
-
-    // Send finish broadcast immediately (not throttled)
     broadcastFinished(channel, player.id);
 
-    // Also send a final progress update so the opponent has accurate stats
     const p = useGameStore.getState().player;
     broadcastProgress(channel, {
       playerId: p.id,
@@ -209,7 +198,6 @@ function GamePageInner() {
     });
   }, [matchMode, player.isFinished, player.id]);
 
-  // Record match result on Tapestry + cleanup multiplayer + payout
   const didRecordMatch = useRef(false);
   useEffect(() => {
     if (gameState === "finished" && matchResult && profile && !didRecordMatch.current) {
@@ -227,8 +215,6 @@ function GamePageInner() {
 
   async function recordMatchOnChain() {
     if (!matchResult || !profile) return;
-
-    // In multiplayer, only the winner records the match to avoid duplicates
     if (matchMode === "multiplayer" && matchResult.winnerId !== player.id) {
       if (stakeAmount > 0) {
         toast.error("Better luck next time! Your stake has been lost.");
@@ -244,7 +230,6 @@ function GamePageInner() {
       });
       toast.success("Match result recorded onchain!");
 
-      // Trigger payout if staked match and player won
       if (stakeAmount > 0 && result?.id) {
         await claimPayout(result.id);
       }
@@ -294,15 +279,12 @@ function GamePageInner() {
     mpChannelRef.current = channel;
     didBroadcastFinish.current = false;
 
-    // Re-subscribe to events for the game phase
     channel.on("broadcast", { event: "room_event" }, ({ payload }) => {
       const evt = payload as { type: string; payload: ProgressPayload | { playerId: string } };
       if (evt.type === "progress") {
         const data = evt.payload as ProgressPayload;
         const store = useGameStore.getState();
-        // Allow progress updates even during countdown so opponent data is fresh
         if (store.gameState === "racing" || store.gameState === "countdown") {
-          // Update opponent state directly without the racing-only guard
           const updatedOpponent = { ...store.opponent };
           updatedOpponent.progress = data.progress;
           updatedOpponent.wpm = data.wpm;
@@ -319,7 +301,6 @@ function GamePageInner() {
       if (evt.type === "player_finished") {
         const store = useGameStore.getState();
         if (store.gameState === "racing" || store.gameState === "countdown") {
-          // Mark opponent as finished before ending the game
           const updatedOpponent = { ...store.opponent, isFinished: true, progress: 100 };
           useGameStore.setState({ opponent: updatedOpponent });
           store.endGame();
@@ -353,7 +334,7 @@ function GamePageInner() {
     const modeLabel = matchMode === "multiplayer" ? "multiplayer" : "bot";
     const text = `I just ${
       matchResult.winnerId === player.id ? "won" : "lost"
-    } a KeySocial ${modeLabel} race! WPM: ${player.wpm} | Accuracy: ${player.accuracy}% 🏎️⚡ #KeySocial #Solana`;
+    } a KeySocial ${modeLabel} race! WPM: ${player.wpm} | Accuracy: ${player.accuracy}% #KeySocial #Solana`;
 
     if (navigator.share) {
       navigator.share({ title: "KeySocial Race Result", text });
@@ -363,16 +344,11 @@ function GamePageInner() {
     }
   }
 
-  // Setup screen
   if (showSetup && gameState === "idle") {
     return (
-      <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex flex-col transition-colors duration-300">
-        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-primary rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse pointer-events-none" style={{ animationDuration: "8s" }}></div>
-          <div className="absolute bottom-20 right-10 w-72 h-72 bg-tertiary rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse pointer-events-none" style={{ animationDuration: "10s" }}></div>
-        </div>
+      <div className="min-h-screen bg-bg-primary text-white flex flex-col">
         <AppHeader />
-        <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-4">
+        <main className="flex-grow flex flex-col items-center justify-center px-4">
           <GameSetup
             onStart={handleStartFromSetup}
             onMultiplayerStart={handleMultiplayerStart}
@@ -386,12 +362,11 @@ function GamePageInner() {
     );
   }
 
-  // Results screen
   if (gameState === "finished") {
     return (
-      <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex flex-col transition-colors duration-300">
+      <div className="min-h-screen bg-bg-primary text-white flex flex-col">
         <AppHeader />
-        <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-4 py-12">
+        <main className="flex-grow flex flex-col items-center justify-center px-4 py-12">
           {matchResult && (
             <GameResults
               result={matchResult}
@@ -407,56 +382,50 @@ function GamePageInner() {
     );
   }
 
-  // Active game screen
   const isMultiplayer = matchMode === "multiplayer";
 
   return (
-    <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex flex-col transition-colors duration-300">
+    <div className="min-h-screen bg-bg-primary text-white flex flex-col">
       <CountdownOverlay count={countdown} show={gameState === "countdown"} />
-
       <AppHeader />
 
       <main className="flex-grow flex flex-col items-center justify-center relative p-4 md:p-8 overflow-hidden">
-        <div className="absolute top-20 left-10 w-64 h-64 bg-primary rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse-slow pointer-events-none"></div>
-        <div className="absolute bottom-20 right-10 w-72 h-72 bg-tertiary rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse-slow pointer-events-none"></div>
-        <div className="absolute top-40 right-1/4 w-48 h-48 bg-secondary rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse-slow pointer-events-none"></div>
-
         <div className="w-full max-w-5xl mb-8 space-y-4">
           <div className="flex justify-between items-end mb-2">
             <h1 className="text-2xl md:text-3xl font-bold">
               {isMultiplayer ? (
-                <>1v1 Race <span className="text-accent-blue text-lg font-normal ml-2">Multiplayer</span></>
+                <>1v1 Race <span className="text-purple-400 text-lg font-normal ml-2">Multiplayer</span></>
               ) : (
                 <>Heat #{String(startTime || Date.now()).slice(-4)}{" "}
-                <span className="text-gray-400 dark:text-gray-500 text-lg font-normal ml-2">
-                  Standard • {config.trackLength} Words
+                <span className="text-gray-500 text-lg font-normal ml-2">
+                  Standard &bull; {config.trackLength} Words
                 </span></>
               )}
             </h1>
-            <div className="flex items-center gap-2 text-sm font-bold text-secondary">
+            <div className="flex items-center gap-2 text-sm font-bold text-purple-400">
               <span className="material-icons text-base">timer</span>
               {formatClock(timeElapsed)}
             </div>
           </div>
 
-          <div className="space-y-4 bg-card-light dark:bg-card-dark p-6 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800">
+          <div className="space-y-4 bg-bg-card p-6 rounded-2xl border border-purple-500/10">
             <ProgressRow
               label={`@${opponent.username || "opponent"}`}
               percent={Math.round(opponent.progress)}
-              colorClass={isMultiplayer ? "from-blue-500 to-indigo-600" : "from-purple-500 to-indigo-600"}
+              colorClass="from-pink-500 to-pink-600"
               badge="2nd"
             />
             <ProgressRow
               label={`@${player.username || "you"}`}
               percent={Math.round(player.progress)}
-              colorClass="from-pink-500 to-rose-600"
+              colorClass="from-purple-500 to-purple-600"
               badge="1st"
               glow
             />
 
-            <div className="pt-2 flex items-center justify-between text-xs font-semibold opacity-70">
+            <div className="pt-2 flex items-center justify-between text-xs font-semibold text-gray-500">
               <div className="flex items-center gap-2">
-                <span className="material-icons text-base text-primary">bolt</span>
+                <span className="material-icons text-base text-purple-400">bolt</span>
                 <span>
                   {isMultiplayer ? (
                     <>Mode: <span className="font-mono">1v1 Multiplayer</span></>
@@ -466,14 +435,14 @@ function GamePageInner() {
                 </span>
               </div>
               <div className="font-mono">
-                WPM: <span className="font-bold">{player.wpm}</span> • ACC:{" "}
-                <span className="font-bold">{player.accuracy}%</span>
+                WPM: <span className="font-bold text-white">{player.wpm}</span> &bull; ACC:{" "}
+                <span className="font-bold text-white">{player.accuracy}%</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="w-full max-w-5xl bg-card-light dark:bg-card-dark rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800 p-6 md:p-8">
+        <div className="w-full max-w-5xl bg-bg-card rounded-2xl border border-purple-500/10 p-6 md:p-8">
           <KeyDisplay
             currentWord={currentWord}
             upcomingWords={upcomingWords}
@@ -484,7 +453,7 @@ function GamePageInner() {
             gameActive={gameState === "racing"}
             wordHistory={wordHistory}
           />
-          <div className="mt-2 flex justify-between text-xs text-gray-500 dark:text-gray-400 font-mono">
+          <div className="mt-2 flex justify-between text-xs text-gray-500 font-mono">
             <span>Press SPACE to commit each word</span>
             <span>
               Words: {player.streak}/{config.trackLength}
@@ -511,21 +480,21 @@ function ProgressRow({
 }) {
   return (
     <div className="relative group">
-      <div className="flex justify-between text-xs font-semibold mb-1 opacity-70">
+      <div className="flex justify-between text-xs font-semibold mb-1 text-gray-400">
         <span>{label}</span>
         <span>{percent}%</span>
       </div>
-      <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner">
+      <div className="h-4 w-full bg-bg-elevated rounded-full overflow-hidden">
         <div
-          className={`h-full bg-gradient-to-r ${colorClass} w-[0%] rounded-full relative ${
-            glow ? "shadow-[0_0_15px_rgba(244,63,94,0.6)]" : ""
+          className={`h-full bg-gradient-to-r ${colorClass} rounded-full relative ${
+            glow ? "shadow-[0_0_15px_rgba(139,92,246,0.4)]" : ""
           }`}
           style={{ width: `${percent}%` }}
         >
           <div className="absolute right-0 top-0 bottom-0 w-1 bg-white opacity-80 animate-pulse"></div>
         </div>
       </div>
-      <div className="absolute -right-3 -top-3 bg-rose-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md z-10 border-2 border-white dark:border-card-dark opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute -right-3 -top-3 bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md z-10 border-2 border-bg-card opacity-0 group-hover:opacity-100 transition-opacity">
         {badge}
       </div>
     </div>

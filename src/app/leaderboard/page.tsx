@@ -16,66 +16,34 @@ interface LeaderboardEntry {
   totalEarnings: number;
 }
 
-function aggregateMatches(
-  tapestryContents: TapestryContent[]
-): Map<string, LeaderboardEntry> {
+function aggregateMatches(tapestryContents: TapestryContent[]): Map<string, LeaderboardEntry> {
   const playerMap = new Map<string, LeaderboardEntry>();
 
   function processMatch(
-    winnerId: string,
-    loserId: string,
-    winnerUsername: string,
-    loserUsername: string,
-    winnerWPM: number,
-    loserWPM: number,
-    winnerAccuracy: number,
-    loserAccuracy: number,
-    stakeAmount: number
+    winnerId: string, loserId: string, winnerUsername: string, loserUsername: string,
+    winnerWPM: number, loserWPM: number, winnerAccuracy: number, loserAccuracy: number, stakeAmount: number
   ) {
     if (winnerId) {
-      const e = playerMap.get(winnerId) || {
-        username: winnerUsername || winnerId,
-        profileId: winnerId,
-        wins: 0,
-        losses: 0,
-        bestWPM: 0,
-        avgAccuracy: 0,
-        totalEarnings: 0,
-      };
+      const e = playerMap.get(winnerId) || { username: winnerUsername || winnerId, profileId: winnerId, wins: 0, losses: 0, bestWPM: 0, avgAccuracy: 0, totalEarnings: 0 };
       const totalGames = e.wins + e.losses;
       e.wins += 1;
       e.bestWPM = Math.max(e.bestWPM, winnerWPM);
-      e.avgAccuracy =
-        totalGames > 0
-          ? Math.round((e.avgAccuracy * totalGames + winnerAccuracy) / (totalGames + 1))
-          : winnerAccuracy;
+      e.avgAccuracy = totalGames > 0 ? Math.round((e.avgAccuracy * totalGames + winnerAccuracy) / (totalGames + 1)) : winnerAccuracy;
       e.totalEarnings += stakeAmount;
       playerMap.set(winnerId, e);
     }
 
     if (loserId && loserId !== winnerId) {
-      const e = playerMap.get(loserId) || {
-        username: loserUsername || loserId,
-        profileId: loserId,
-        wins: 0,
-        losses: 0,
-        bestWPM: 0,
-        avgAccuracy: 0,
-        totalEarnings: 0,
-      };
+      const e = playerMap.get(loserId) || { username: loserUsername || loserId, profileId: loserId, wins: 0, losses: 0, bestWPM: 0, avgAccuracy: 0, totalEarnings: 0 };
       const totalGames = e.wins + e.losses;
       e.losses += 1;
       e.bestWPM = Math.max(e.bestWPM, loserWPM);
-      e.avgAccuracy =
-        totalGames > 0
-          ? Math.round((e.avgAccuracy * totalGames + loserAccuracy) / (totalGames + 1))
-          : loserAccuracy;
+      e.avgAccuracy = totalGames > 0 ? Math.round((e.avgAccuracy * totalGames + loserAccuracy) / (totalGames + 1)) : loserAccuracy;
       e.totalEarnings -= stakeAmount;
       playerMap.set(loserId, e);
     }
   }
 
-  // Deduplicate matches with same winner+loser+WPM within 5 seconds
   const seen = new Set<string>();
   for (const content of tapestryContents) {
     const props = content.properties || {};
@@ -85,18 +53,12 @@ function aggregateMatches(
     if (seen.has(key)) continue;
     seen.add(key);
     processMatch(
-      props.winnerId,
-      props.loserId,
-      props.winnerUsername || props.winnerId,
-      props.loserUsername || props.loserId,
-      parseInt(props.winnerWPM || "0"),
-      parseInt(props.loserWPM || "0"),
-      parseInt(props.winnerAccuracy || "0"),
-      parseInt(props.loserAccuracy || "0"),
+      props.winnerId, props.loserId, props.winnerUsername || props.winnerId, props.loserUsername || props.loserId,
+      parseInt(props.winnerWPM || "0"), parseInt(props.loserWPM || "0"),
+      parseInt(props.winnerAccuracy || "0"), parseInt(props.loserAccuracy || "0"),
       parseFloat(props.stakeAmount || "0")
     );
   }
-
   return playerMap;
 }
 
@@ -105,45 +67,27 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const { profile } = useUserStore();
 
-  useEffect(() => {
-    loadLeaderboard();
-  }, []);
+  useEffect(() => { loadLeaderboard(); }, []);
 
   async function loadLeaderboard() {
     setLoading(true);
     try {
       let tapestryContents: TapestryContent[] = [];
-      try {
-        tapestryContents = await getContents(100, 0);
-      } catch {}
+      try { tapestryContents = await getContents(100, 0); } catch {}
 
       const playerMap = aggregateMatches(tapestryContents);
 
-      // Ensure current user is on the leaderboard even with 0 matches
       if (profile) {
         const pid = profile.id || profile.username;
         if (!playerMap.has(pid)) {
-          playerMap.set(pid, {
-            username: profile.username || "You",
-            profileId: pid,
-            wins: 0,
-            losses: 0,
-            bestWPM: 0,
-            avgAccuracy: 0,
-            totalEarnings: 0,
-          });
+          playerMap.set(pid, { username: profile.username || "You", profileId: pid, wins: 0, losses: 0, bestWPM: 0, avgAccuracy: 0, totalEarnings: 0 });
         } else {
           const existing = playerMap.get(pid)!;
           existing.username = profile.username || existing.username;
         }
       }
 
-      // Filter out bot entries
-      const allEntries = Array.from(playerMap.values()).filter(
-        (e) => !e.profileId.startsWith("ai-")
-      );
-
-      // Merge entries with the same username (handles legacy "remote-opponent" IDs)
+      const allEntries = Array.from(playerMap.values()).filter((e) => !e.profileId.startsWith("ai-"));
       const byUsername = new Map<string, LeaderboardEntry>();
       for (const e of allEntries) {
         const existing = byUsername.get(e.username);
@@ -153,19 +97,14 @@ export default function LeaderboardPage() {
           existing.bestWPM = Math.max(existing.bestWPM, e.bestWPM);
           const existTotal = existing.wins + existing.losses - e.wins - e.losses;
           const newTotal = e.wins + e.losses;
-          existing.avgAccuracy = existTotal + newTotal > 0
-            ? Math.round((existing.avgAccuracy * existTotal + e.avgAccuracy * newTotal) / (existTotal + newTotal))
-            : 0;
+          existing.avgAccuracy = existTotal + newTotal > 0 ? Math.round((existing.avgAccuracy * existTotal + e.avgAccuracy * newTotal) / (existTotal + newTotal)) : 0;
           existing.totalEarnings += e.totalEarnings;
-          // Prefer the real profile ID over "remote-opponent"
           if (e.profileId !== "remote-opponent") existing.profileId = e.profileId;
         } else {
           byUsername.set(e.username, { ...e });
         }
       }
-      const leaderboard = Array.from(byUsername.values());
-
-      setEntries(leaderboard);
+      setEntries(Array.from(byUsername.values()));
     } catch (err) {
       console.error("Failed to load leaderboard:", err);
     } finally {
@@ -184,18 +123,16 @@ export default function LeaderboardPage() {
   const myId = profile?.id || profile?.username;
 
   return (
-    <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen flex flex-col">
+    <div className="min-h-screen bg-bg-primary text-white flex flex-col">
       <AppHeader />
 
       <main className="flex-grow w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-16 relative">
-          <div className="absolute -top-10 -left-20 w-32 h-32 bg-accent-lime rounded-full blur-2xl opacity-20 hidden md:block"></div>
-          <div className="absolute top-0 -right-20 w-40 h-40 bg-accent-purple rounded-full blur-2xl opacity-10 hidden md:block"></div>
+        <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4">
             Global Racing Standings
           </h1>
-          <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-            Top typists earning huge rewards on Solana. Join the race, type fast, and climb the ranks.
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+            Top typists on Solana. Join the race, type fast, and climb the ranks.
           </p>
         </div>
 
@@ -207,8 +144,8 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white dark:bg-slate-900 border-2 border-black dark:border-slate-700 rounded-2xl overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-black/10 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">
+        <div className="bg-bg-card border border-purple-500/10 rounded-2xl overflow-hidden">
+          <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-purple-500/10 bg-bg-elevated text-xs font-bold text-gray-500 uppercase tracking-wider">
             <div className="col-span-1 text-center">Rank</div>
             <div className="col-span-3">Player</div>
             <div className="col-span-2 text-center">Best WPM</div>
@@ -218,17 +155,17 @@ export default function LeaderboardPage() {
           </div>
 
           {loading ? (
-            <div className="p-10 text-center text-slate-500">
+            <div className="p-10 text-center text-gray-500">
               <span className="material-icons animate-spin mr-2 align-middle">progress_activity</span>
               Loading…
             </div>
           ) : sortedEntries.length === 0 ? (
-            <div className="p-10 text-center text-slate-500">
+            <div className="p-10 text-center text-gray-500">
               <span className="material-icons text-4xl mb-2 block">sports_esports</span>
-              No matches played yet. <Link href="/game" className="text-primary font-bold hover:underline">Play your first game!</Link>
+              No matches played yet. <Link href="/game" className="text-purple-400 font-bold hover:underline">Play your first game!</Link>
             </div>
           ) : (
-            <div className="divide-y divide-black/10 dark:divide-slate-800">
+            <div className="divide-y divide-purple-500/5">
               {sortedEntries.map((entry, idx) => {
                 const rank = idx + 1;
                 const total = entry.wins + entry.losses;
@@ -238,11 +175,11 @@ export default function LeaderboardPage() {
                   <Link
                     key={entry.profileId}
                     href={`/profile/${entry.username}`}
-                    className={`grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-accent-lime/10 transition-colors ${isMe ? "bg-primary/5 border-l-4 border-l-primary" : ""}`}
+                    className={`grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-purple-500/5 transition-colors ${isMe ? "bg-purple-500/5 border-l-4 border-l-purple-500" : ""}`}
                   >
-                    <div className="col-span-1 text-center font-bold text-slate-500">
+                    <div className="col-span-1 text-center font-bold text-gray-500">
                       {rank <= 3 ? (
-                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${rank === 1 ? "bg-yellow-400 text-black" : rank === 2 ? "bg-slate-300 text-black" : "bg-amber-600 text-white"}`}>
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${rank === 1 ? "bg-yellow-400 text-black" : rank === 2 ? "bg-gray-400 text-black" : "bg-amber-600 text-white"}`}>
                           {rank}
                         </span>
                       ) : (
@@ -250,30 +187,27 @@ export default function LeaderboardPage() {
                       )}
                     </div>
                     <div className="col-span-3 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 border border-black/10 dark:border-slate-700 flex items-center justify-center font-bold">
+                      <div className="w-10 h-10 rounded-xl bg-bg-elevated border border-purple-500/15 flex items-center justify-center font-bold">
                         {entry.username[0]?.toUpperCase() || "?"}
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold truncate flex items-center gap-1.5">
                           {entry.username}
-                          {isMe && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">YOU</span>}
+                          {isMe && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">YOU</span>}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                        <p className="text-xs text-gray-500">
                           {entry.wins}W - {entry.losses}L
                         </p>
                       </div>
                     </div>
                     <div className="col-span-2 text-center">
                       <span className="font-mono font-bold text-lg">{entry.bestWPM}</span>
-                      <span className="text-xs text-slate-400 ml-1">WPM</span>
+                      <span className="text-xs text-gray-500 ml-1">WPM</span>
                     </div>
                     <div className="col-span-2 text-center">
                       <span className="font-mono">{winRate}%</span>
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mt-1 overflow-hidden">
-                        <div
-                          className="bg-accent-pink h-full rounded-full"
-                          style={{ width: `${winRate}%` }}
-                        />
+                      <div className="w-full bg-bg-elevated h-1.5 rounded-full mt-1 overflow-hidden">
+                        <div className="bg-purple-500 h-full rounded-full" style={{ width: `${winRate}%` }} />
                       </div>
                     </div>
                     <div className="col-span-2 text-center font-mono text-sm">
@@ -293,52 +227,42 @@ export default function LeaderboardPage() {
   );
 }
 
-function PodiumBlock({
-  place,
-  entry,
-  isMe,
-}: {
-  place: 1 | 2 | 3;
-  entry?: LeaderboardEntry;
-  isMe?: boolean;
-}) {
+function PodiumBlock({ place, entry, isMe }: { place: 1 | 2 | 3; entry?: LeaderboardEntry; isMe?: boolean }) {
   const name = entry?.username || "—";
   const handle = entry ? `@${entry.username.toLowerCase().replace(/\s+/g, "_")}` : "—";
   const totalGames = entry ? entry.wins + entry.losses : 0;
-  const ring =
-    place === 1
-      ? "border-accent-lime"
-      : place === 2
-      ? "border-accent-pink"
-      : "border-accent-teal";
+  const ring = place === 1 ? "border-yellow-400" : place === 2 ? "border-gray-400" : "border-amber-600";
   const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
 
-  const Wrapper = entry ? Link : "div";
-  const wrapperProps = entry ? { href: `/profile/${entry.username}` } : {};
-
-  return (
-    <Wrapper {...(wrapperProps as Record<string, string>)} className={`podium-block w-full md:w-1/3 max-w-xs relative ${place === 1 ? "order-1 md:-order-none" : "order-2 md:order-none"} group`}>
-      <div className="bg-white dark:bg-slate-800 border-2 border-black dark:border-slate-600 rounded-2xl p-6 mb-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative z-10 flex flex-col items-center group-hover:border-primary transition-colors">
+  const className = `podium-block w-full md:w-1/3 max-w-xs relative ${place === 1 ? "order-1 md:-order-none" : "order-2 md:order-none"} group`;
+  const inner = (
+    <>
+      <div className="bg-bg-card border border-purple-500/10 rounded-2xl p-6 mb-4 relative z-10 flex flex-col items-center group-hover:border-purple-500/30 transition-colors">
         {isMe && (
-          <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">YOU</span>
+          <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">YOU</span>
         )}
-        <div className={`w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 mb-3 border-2 ${ring} overflow-hidden flex items-center justify-center font-bold text-xl`}>
+        <div className={`w-16 h-16 rounded-full bg-bg-elevated mb-3 border-2 ${ring} overflow-hidden flex items-center justify-center font-bold text-xl`}>
           {name[0]?.toUpperCase() || "?"}
         </div>
-        <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{name}</h3>
-        <div className="text-slate-500 dark:text-slate-400 text-sm font-mono mb-2">{handle}</div>
+        <h3 className="font-bold text-lg group-hover:text-purple-400 transition-colors">{name}</h3>
+        <div className="text-gray-500 text-sm font-mono mb-2">{handle}</div>
         {entry ? (
           <div className="text-center space-y-1">
-            <div className="font-mono font-bold text-lg">{entry.bestWPM} <span className="text-xs text-slate-400">WPM</span></div>
-            <div className="text-xs text-slate-500">{entry.wins}W - {entry.losses}L ({totalGames} matches)</div>
+            <div className="font-mono font-bold text-lg">{entry.bestWPM} <span className="text-xs text-gray-500">WPM</span></div>
+            <div className="text-xs text-gray-500">{entry.wins}W - {entry.losses}L ({totalGames} matches)</div>
           </div>
         ) : (
-          <div className="text-sm text-slate-400">No data</div>
+          <div className="text-sm text-gray-500">No data</div>
         )}
       </div>
-      <div className="h-20 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-black dark:border-slate-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center">
+      <div className="h-20 rounded-2xl bg-bg-elevated border border-purple-500/10 flex items-center justify-center">
         <span className="text-2xl font-extrabold">{medal} {place}</span>
       </div>
-    </Wrapper>
+    </>
   );
+
+  if (entry) {
+    return <Link href={`/profile/${entry.username}`} className={className}>{inner}</Link>;
+  }
+  return <div className={className}>{inner}</div>;
 }

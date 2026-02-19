@@ -20,7 +20,7 @@ type NavItem = { href: string; label: string; icon: string };
 const NAV: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/feed", label: "Feed", icon: "forum" },
-  { href: "/game", label: "Game", icon: "sports_esports" },
+  { href: "/game", label: "Race", icon: "sports_esports" },
   { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
 ];
 
@@ -44,33 +44,32 @@ export default function AppHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full backdrop-blur-md bg-background-light/80 dark:bg-background-dark/80 border-b border-gray-200 dark:border-gray-800",
+        "sticky top-0 z-50 w-full bg-bg-primary/80 backdrop-blur-xl border-b border-purple-500/10",
         className
       )}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="h-16 flex items-center justify-between">
-          {/* Left: Logo + nav links */}
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-black font-extrabold">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center text-white font-extrabold text-sm shadow-glow-sm">
                 K
               </div>
-              <span className="font-display font-bold text-xl tracking-tight text-black dark:text-white">
+              <span className="font-display font-bold text-xl tracking-tight text-white">
                 KeySocial
               </span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1 ml-4">
+            <nav className="hidden md:flex items-center gap-1 ml-6">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "px-3 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5",
+                    "px-3.5 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5",
                     isActive(item.href)
-                      ? "bg-primary text-black"
-                      : "text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                      ? "bg-purple-500/15 text-purple-300 shadow-glow-sm"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
                   )}
                 >
                   <span className="material-icons-outlined text-[18px]">{item.icon}</span>
@@ -80,20 +79,18 @@ export default function AppHeader({ className }: { className?: string }) {
             </nav>
           </div>
 
-          {/* Right: Profile + Wallet + mobile toggle */}
-          <div className="flex items-center gap-2">
-            {/* Profile link (desktop) */}
+          <div className="flex items-center gap-3">
             <Link
               href={profileHref}
               className={cn(
-                "hidden md:flex items-center gap-2 pl-3 pr-4 py-2 rounded-full text-sm font-medium transition-colors",
+                "hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all",
                 isProfileActive
-                  ? "bg-gray-900 text-white dark:bg-white dark:text-black"
-                  : "text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                  ? "bg-purple-500/15 text-purple-300"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
               )}
             >
               {profile ? (
-                <span className="w-6 h-6 rounded-full bg-primary text-black text-xs font-bold flex items-center justify-center">
+                <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 text-white text-xs font-bold flex items-center justify-center">
                   {profile.username?.[0]?.toUpperCase() || "?"}
                 </span>
               ) : (
@@ -103,11 +100,11 @@ export default function AppHeader({ className }: { className?: string }) {
             </Link>
 
             <div className="hidden sm:block">
-              <WalletMultiButton className="!bg-black hover:!bg-gray-800 !text-white dark:!bg-white dark:!text-black dark:hover:!bg-gray-200 !px-5 !py-2 !rounded-full !text-sm !font-bold !shadow-lg" />
+              <WalletMultiButton className="!bg-gradient-to-r !from-purple-600 !to-purple-500 !text-white !px-5 !py-2 !rounded-xl !text-sm !font-bold !border-0 hover:!opacity-90" />
             </div>
 
             <button
-              className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Toggle menu"
             >
@@ -117,22 +114,21 @@ export default function AppHeader({ className }: { className?: string }) {
         </div>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md">
+        <div className="md:hidden border-t border-purple-500/10 bg-bg-primary/95 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-2">
-            <WalletMultiButton className="!justify-center !bg-black !text-white dark:!bg-white dark:!text-black !rounded-full" />
-            <div className="h-px bg-gray-200 dark:bg-gray-800 my-2" />
+            <WalletMultiButton className="!justify-center !bg-gradient-to-r !from-purple-600 !to-purple-500 !text-white !rounded-xl" />
+            <div className="h-px bg-purple-500/10 my-2" />
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "px-4 py-3 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2",
+                  "px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2",
                   isActive(item.href)
-                    ? "bg-primary text-black"
-                    : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    ? "bg-purple-500/15 text-purple-300"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
                 )}
               >
                 <span className="material-icons-outlined text-[18px]">{item.icon}</span>
@@ -143,10 +139,10 @@ export default function AppHeader({ className }: { className?: string }) {
               href={profileHref}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "px-4 py-3 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2",
+                "px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2",
                 isProfileActive
-                  ? "bg-gray-900 text-white dark:bg-white dark:text-black"
-                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  ? "bg-purple-500/15 text-purple-300"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
               )}
             >
               <span className="material-icons-outlined text-[18px]">person</span>

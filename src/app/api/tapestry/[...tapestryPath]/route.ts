@@ -60,18 +60,21 @@ async function proxy(req: NextRequest, tapestryPath: string[]) {
   });
 }
 
-// Next.js 14 App Router: params is a plain object, not a Promise.
-type RouteCtx = { params: { tapestryPath: string[] } };
+type RouteCtx = { params: Promise<{ tapestryPath: string[] }> };
 
 export async function GET(req: NextRequest, ctx: RouteCtx) {
-  return proxy(req, ctx.params.tapestryPath);
+  const { tapestryPath } = await ctx.params;
+  return proxy(req, tapestryPath);
 }
 export async function POST(req: NextRequest, ctx: RouteCtx) {
-  return proxy(req, ctx.params.tapestryPath);
+  const { tapestryPath } = await ctx.params;
+  return proxy(req, tapestryPath);
 }
 export async function PUT(req: NextRequest, ctx: RouteCtx) {
-  return proxy(req, ctx.params.tapestryPath);
+  const { tapestryPath } = await ctx.params;
+  return proxy(req, tapestryPath);
 }
 export async function DELETE(req: NextRequest, ctx: RouteCtx) {
-  return proxy(req, ctx.params.tapestryPath);
+  const { tapestryPath } = await ctx.params;
+  return proxy(req, tapestryPath);
 }

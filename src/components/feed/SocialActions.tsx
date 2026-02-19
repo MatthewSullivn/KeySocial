@@ -65,7 +65,6 @@ export function SocialActions({
     }
   }, [postId]);
 
-  // Load comments from Tapestry when comments section is opened
   useEffect(() => {
     if (commentsOpen && !commentsLoaded) {
       loadComments();
@@ -98,7 +97,6 @@ export function SocialActions({
 
   async function handleSubmitComment() {
     if (!commentText.trim() || submitting) return;
-    const author = profile?.username || "You";
     const profileId = profile?.id || profile?.username;
     if (!profileId) return;
 
@@ -137,11 +135,11 @@ export function SocialActions({
 
   return (
     <div className="mt-4">
-      <div className="flex items-center gap-6 text-slate-500">
+      <div className="flex items-center gap-6 text-gray-500">
         <button
           type="button"
           onClick={handleLike}
-          className={`flex items-center gap-2 transition-colors group ${liked ? "text-accent-pink" : "hover:text-accent-pink"}`}
+          className={`flex items-center gap-2 transition-colors group ${liked ? "text-pink-400" : "hover:text-pink-400"}`}
         >
           <span className="material-icons text-xl group-hover:scale-110 transition-transform">
             {liked ? "favorite" : "favorite_border"}
@@ -151,7 +149,7 @@ export function SocialActions({
         <button
           type="button"
           onClick={handleToggleComments}
-          className={`flex items-center gap-2 transition-colors group ${commentsOpen ? "text-accent-blue" : "hover:text-accent-blue"}`}
+          className={`flex items-center gap-2 transition-colors group ${commentsOpen ? "text-purple-400" : "hover:text-purple-400"}`}
         >
           <span className="material-icons text-xl group-hover:scale-110 transition-transform">
             {commentsOpen ? "chat_bubble" : "chat_bubble_outline"}
@@ -165,50 +163,50 @@ export function SocialActions({
           </button>
         )}
         {showShare && (
-          <button type="button" className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors ml-auto">
+          <button type="button" className="flex items-center gap-2 hover:text-white transition-colors ml-auto">
             <span className="material-icons text-xl">share</span>
           </button>
         )}
       </div>
 
       {commentsOpen && (
-        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+        <div className="mt-4 pt-4 border-t border-purple-500/10 space-y-3">
           {!commentsLoaded && (
-            <p className="text-sm text-slate-400 text-center py-2">Loading comments...</p>
+            <p className="text-sm text-gray-500 text-center py-2">Loading comments...</p>
           )}
           {commentsLoaded && comments.length > 0 && (
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {comments.map((c, idx) => (
                 <div key={c.id || `comment-${idx}`} className="flex gap-3 group/comment">
-                  <Link href={`/profile/${c.author}`} className="w-7 h-7 rounded-md bg-primary/20 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0 hover:ring-2 hover:ring-primary/40 transition-all">
+                  <Link href={`/profile/${c.author}`} className="w-7 h-7 rounded-lg bg-purple-500/15 flex items-center justify-center text-xs font-bold text-purple-300 shrink-0 hover:shadow-glow-sm transition-all">
                     {c.author[0]?.toUpperCase()}
                   </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <Link href={`/profile/${c.author}`} className="font-bold text-sm hover:text-primary transition-colors">{c.author}</Link>
-                      <span className="text-xs text-slate-400">{formatTime(c.createdAt)}</span>
+                      <Link href={`/profile/${c.author}`} className="font-bold text-sm hover:text-purple-400 transition-colors">{c.author}</Link>
+                      <span className="text-xs text-gray-500">{formatTime(c.createdAt)}</span>
                       {currentUsername && c.author === currentUsername && (
                         <button
                           type="button"
                           onClick={() => handleDeleteComment(c.id)}
-                          className="text-slate-400 hover:text-red-500 transition-colors ml-auto p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="text-gray-500 hover:text-red-400 transition-colors ml-auto p-0.5 rounded hover:bg-red-500/10"
                           title="Delete comment"
                         >
                           <span className="material-icons text-base">delete</span>
                         </button>
                       )}
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{c.text}</p>
+                    <p className="text-sm text-gray-300 mt-0.5">{c.text}</p>
                   </div>
                 </div>
               ))}
             </div>
           )}
           {commentsLoaded && comments.length === 0 && (
-            <p className="text-sm text-slate-400 text-center py-2">No comments yet. Be the first!</p>
+            <p className="text-sm text-gray-500 text-center py-2">No comments yet. Be the first!</p>
           )}
           <div className="flex gap-2 items-center">
-            <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-xs font-bold text-slate-900 shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-xs font-bold text-white shrink-0">
               {(profile?.username || "?")[0]?.toUpperCase()}
             </div>
             <input
@@ -219,13 +217,13 @@ export function SocialActions({
               onKeyDown={(e) => { if (e.key === "Enter") handleSubmitComment(); }}
               placeholder={profile ? "Write a comment..." : "Connect wallet to comment"}
               disabled={!profile || submitting}
-              className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-bg-elevated border border-purple-500/15 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/30 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               type="button"
               onClick={handleSubmitComment}
               disabled={!profile || !commentText.trim() || submitting}
-              className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-3 py-2 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-3 py-2 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? "..." : "Post"}
             </button>

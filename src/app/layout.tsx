@@ -7,8 +7,8 @@ import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "KeySocial | Onchain Social Racing",
   description:
-    "Real-time keypress racing duels on Solana. Stake, race, and compete in the fastest social game onchain.",
-  keywords: ["solana", "racing", "social", "onchain", "typing", "game", "stake"],
+    "Real-time keypress racing duels on Solana. Race, compete, and climb the leaderboards in the fastest social game onchain.",
+  keywords: ["solana", "racing", "social", "onchain", "typing", "game"],
 };
 
 export default function RootLayout({
@@ -39,17 +39,17 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         />
       </head>
-      <body className="bg-background-light text-text-light font-body antialiased">
+      <body className="bg-bg-primary text-white font-body antialiased">
         <WalletProvider>
           <ProfileProvider>
             {children}
             <Toaster
-              theme="system"
+              theme="dark"
               position="bottom-right"
               toastOptions={{
                 style: {
-                  background: "#111827",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "#13112A",
+                  border: "1px solid rgba(139, 92, 246, 0.2)",
                   color: "#F3F4F6",
                 },
               }}
