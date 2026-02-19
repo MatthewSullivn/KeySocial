@@ -2,14 +2,13 @@
 
 **Real-time, browser-based social typing game on Solana**
 
-KeySocial is a competitive word typing racing game where players compete in head-to-head sprint duels with real SOL stakes. Built for the Solana Hackathon with Tapestry Protocol integration for onchain social features.
+KeySocial is a competitive word typing racing game where players compete in head-to-head sprint duels. Built for the Solana Hackathon with Tapestry Protocol integration for onchain social features.
 
 ## What is KeySocial?
 
 KeySocial combines fast-paced word typing mechanics with blockchain technology to create a skill-based competitive racing platform:
 
 - **Fast Rounds**: 30-60 second matches for instant gratification
-- **Real Stakes**: Stake SOL tokens on your matches
 - **Skill-Based**: Pure typing speed and accuracy - no luck involved
 - **Onchain Social**: Profiles, follows, and match history powered by Tapestry
 - **Multiple Difficulties**: From casual home-row typing to insane mode with symbols
@@ -31,11 +30,6 @@ KeySocial combines fast-paced word typing mechanics with blockchain technology t
 - **Match History**: Every race recorded onchain
 - **Global Leaderboard**: Compete for the top spot
 - **Ranking System**: Bronze > Silver > Gold > Platinum > Diamond > Legend
-
-### Staking & Rewards
-- **SOL Staking**: Lock tokens before each match
-- **Winner Takes All**: Automatic payouts to the victor
-- **Transparent Results**: All match outcomes onchain via Tapestry
 
 ## Tech Stack
 
@@ -131,7 +125,7 @@ KeySocial/
 │   │   ├── tapestry.ts         # Tapestry API client
 │   │   ├── game-engine.ts      # Core game logic
 │   │   ├── multiplayer.ts      # Supabase Realtime rooms
-│   │   ├── escrow.ts           # SOL staking/escrow
+│   │   ├── escrow.ts           # Escrow helpers (optional)
 │   │   └── utils.ts            # Helpers
 │   ├── providers/
 │   │   ├── WalletProvider.tsx  # Solana wallet context
@@ -185,7 +179,6 @@ This project is submitted for the **Onchain Social** track with **Tapestry Proto
 
 ### Additional Features:
 - Real-time 1v1 multiplayer via Supabase Realtime
-- SOL staking with escrow and automated payouts
 - Custom profile properties (stats, images)
 - Match history with detailed breakdowns
 - Ranking system based on wins
