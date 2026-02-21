@@ -23,7 +23,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
         />
         <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
         <link
@@ -39,18 +39,18 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         />
       </head>
-      <body className="bg-bg-primary text-white font-body antialiased">
+      <body className="bg-background text-text font-body antialiased">
         <WalletProvider>
           <ProfileProvider>
             {children}
             <Toaster
-              theme="dark"
+              theme="light"
               position="bottom-right"
               toastOptions={{
                 style: {
-                  background: "#13112A",
-                  border: "1px solid rgba(139, 92, 246, 0.2)",
-                  color: "#F3F4F6",
+                  background: "#FFFFFF",
+                  border: "1px solid #E5E7EB",
+                  color: "#111827",
                 },
               }}
             />

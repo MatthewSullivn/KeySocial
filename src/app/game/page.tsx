@@ -229,6 +229,7 @@ function GamePageInner() {
         stakeAmount,
       });
       toast.success("Match result recorded onchain!");
+      toast("Result posted to your feed!", { icon: "📣" });
 
       if (stakeAmount > 0 && result?.id) {
         await claimPayout(result.id);
@@ -331,10 +332,13 @@ function GamePageInner() {
 
   function handleShare() {
     if (!matchResult) return;
-    const modeLabel = matchMode === "multiplayer" ? "multiplayer" : "bot";
-    const text = `I just ${
-      matchResult.winnerId === player.id ? "won" : "lost"
-    } a KeySocial ${modeLabel} race! WPM: ${player.wpm} | Accuracy: ${player.accuracy}% #KeySocial #Solana`;
+    const won = matchResult.winnerId === player.id;
+    const oppName = opponent.username || "opponent";
+    const duration = timeElapsed > 0 ? `${Math.floor(timeElapsed / 60)}m ${timeElapsed % 60}s` : "";
+    const stakeInfo = stakeAmount > 0 ? ` | Stake: ${stakeAmount} SOL` : "";
+    const durationInfo = duration ? ` | Duration: ${duration}` : "";
+
+    const text = `I just ${won ? "beat" : "lost to"} @${oppName} in a KeySocial typing race!\n\nWPM: ${player.wpm} vs ${opponent.wpm} | Accuracy: ${player.accuracy}%${durationInfo}${stakeInfo}\n\n#KeySocial #Solana #Tapestry`;
 
     if (navigator.share) {
       navigator.share({ title: "KeySocial Race Result", text });
@@ -346,7 +350,7 @@ function GamePageInner() {
 
   if (showSetup && gameState === "idle") {
     return (
-      <div className="min-h-screen bg-bg-primary text-white flex flex-col">
+      <div className="min-h-screen bg-background text-text flex flex-col">
         <AppHeader />
         <main className="flex-grow flex flex-col items-center justify-center px-4">
           <GameSetup
@@ -364,7 +368,7 @@ function GamePageInner() {
 
   if (gameState === "finished") {
     return (
-      <div className="min-h-screen bg-bg-primary text-white flex flex-col">
+      <div className="min-h-screen bg-background text-text flex flex-col">
         <AppHeader />
         <main className="flex-grow flex flex-col items-center justify-center px-4 py-12">
           {matchResult && (
@@ -385,34 +389,43 @@ function GamePageInner() {
   const isMultiplayer = matchMode === "multiplayer";
 
   return (
-    <div className="min-h-screen bg-bg-primary text-white flex flex-col">
+    <div className="min-h-screen bg-background text-text flex flex-col relative">
+      {/* Subtle background radial gradients */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-purple-200/30 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-pink-200/20 rounded-full blur-[120px]" />
+      </div>
+
       <CountdownOverlay count={countdown} show={gameState === "countdown"} />
       <AppHeader />
 
-      <main className="flex-grow flex flex-col items-center justify-center relative p-4 md:p-8 overflow-hidden">
+      <main className="flex-grow flex flex-col items-center justify-center relative p-4 md:p-8 overflow-hidden z-10">
         <div className="w-full max-w-5xl mb-8 space-y-4">
           <div className="flex justify-between items-end mb-2">
-            <h1 className="text-2xl md:text-3xl font-bold">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               {isMultiplayer ? (
-                <>1v1 Race <span className="text-purple-400 text-lg font-normal ml-2">Multiplayer</span></>
+                <>1v1 Race <span className="text-purple-500 text-lg font-normal ml-2">Multiplayer</span></>
               ) : (
                 <>Heat #{String(startTime || Date.now()).slice(-4)}{" "}
-                <span className="text-gray-500 text-lg font-normal ml-2">
-                  Standard &bull; {config.trackLength} Words
+                <span className="inline-flex items-center gap-1.5 ml-2 px-2.5 py-0.5 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-500 font-normal">
+                  STANDARD
+                </span>
+                <span className="text-gray-400 text-base font-normal ml-2">
+                  {config.trackLength} Words • English
                 </span></>
               )}
             </h1>
-            <div className="flex items-center gap-2 text-sm font-bold text-purple-400">
+            <div className="flex items-center gap-2 text-sm font-bold text-purple-500">
               <span className="material-icons text-base">timer</span>
               {formatClock(timeElapsed)}
             </div>
           </div>
 
-          <div className="space-y-4 bg-bg-card p-6 rounded-2xl border border-purple-500/10">
+          <div className="space-y-4 bg-white p-6 rounded-xl border border-gray-200">
             <ProgressRow
               label={`@${opponent.username || "opponent"}`}
               percent={Math.round(opponent.progress)}
-              colorClass="from-pink-500 to-pink-600"
+              colorClass="from-pink-400 to-pink-500"
               badge="2nd"
             />
             <ProgressRow
@@ -425,7 +438,7 @@ function GamePageInner() {
 
             <div className="pt-2 flex items-center justify-between text-xs font-semibold text-gray-500">
               <div className="flex items-center gap-2">
-                <span className="material-icons text-base text-purple-400">bolt</span>
+                <span className="material-icons text-base text-purple-500">bolt</span>
                 <span>
                   {isMultiplayer ? (
                     <>Mode: <span className="font-mono">1v1 Multiplayer</span></>
@@ -435,14 +448,19 @@ function GamePageInner() {
                 </span>
               </div>
               <div className="font-mono">
-                WPM: <span className="font-bold text-white">{player.wpm}</span> &bull; ACC:{" "}
-                <span className="font-bold text-white">{player.accuracy}%</span>
+                WPM: <span className="font-bold text-gray-900">{player.wpm}</span> &bull; ACC:{" "}
+                <span className="font-bold text-gray-900">{player.accuracy}%</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="w-full max-w-5xl bg-bg-card rounded-2xl border border-purple-500/10 p-6 md:p-8">
+        <div className="w-full max-w-5xl bg-gray-50 rounded-xl border border-gray-200 p-6 md:p-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-purple-50 border border-purple-200 rounded-md text-xs text-purple-600 font-bold">
+              STAKE: {stakeAmount ? `${stakeAmount} SOL` : "PRACTICE"}
+            </span>
+          </div>
           <KeyDisplay
             currentWord={currentWord}
             upcomingWords={upcomingWords}
@@ -453,11 +471,15 @@ function GamePageInner() {
             gameActive={gameState === "racing"}
             wordHistory={wordHistory}
           />
-          <div className="mt-2 flex justify-between text-xs text-gray-500 font-mono">
-            <span>Press SPACE to commit each word</span>
-            <span>
-              Words: {player.streak}/{config.trackLength}
-            </span>
+          <div className="mt-4 flex justify-between items-center text-xs text-gray-500 font-mono">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              Server: US-East (12ms)
+            </div>
+            <div className="flex items-center gap-4">
+              <span>Words: {player.streak}/{config.trackLength}</span>
+              <span>Errors: {player.mistakes}</span>
+            </div>
           </div>
         </div>
       </main>
@@ -480,21 +502,21 @@ function ProgressRow({
 }) {
   return (
     <div className="relative group">
-      <div className="flex justify-between text-xs font-semibold mb-1 text-gray-400">
+      <div className="flex justify-between text-xs font-semibold mb-1 text-gray-500">
         <span>{label}</span>
         <span>{percent}%</span>
       </div>
-      <div className="h-4 w-full bg-bg-elevated rounded-full overflow-hidden">
+      <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden">
         <div
           className={`h-full bg-gradient-to-r ${colorClass} rounded-full relative ${
-            glow ? "shadow-[0_0_15px_rgba(139,92,246,0.4)]" : ""
+            glow ? "shadow-[0_0_12px_rgba(139,92,246,0.3)]" : ""
           }`}
           style={{ width: `${percent}%` }}
         >
           <div className="absolute right-0 top-0 bottom-0 w-1 bg-white opacity-80 animate-pulse"></div>
         </div>
       </div>
-      <div className="absolute -right-3 -top-3 bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md z-10 border-2 border-bg-card opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute -right-3 -top-3 bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md z-10 border-2 border-white opacity-0 group-hover:opacity-100 transition-opacity">
         {badge}
       </div>
     </div>

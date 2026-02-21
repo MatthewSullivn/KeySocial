@@ -9,13 +9,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: {
-          primary: "#0B0A1A",
-          card: "#13112A",
-          elevated: "#1C1838",
-          input: "#1C1838",
-          hover: "#231F42",
-        },
+        background: "#F3F4F6",
+        surface: "#FFFFFF",
+        "surface-dark": "#161920",
+        border: "#E5E7EB",
+        text: "#111827",
+        subtext: "#6B7280",
+        primary: "#8B5CF6",
         purple: {
           50: "#f5f3ff",
           100: "#ede9fe",
@@ -45,14 +45,16 @@ const config: Config = {
       fontFamily: {
         display: ["Plus Jakarta Sans", "Space Grotesk", "Inter", "system-ui", "sans-serif"],
         body: ["Inter", "system-ui", "sans-serif"],
-        mono: ["Courier New", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      borderRadius: {
+        DEFAULT: "0.5rem",
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "slide-up": "slide-up 0.5s ease-out",
         "slide-down": "slide-down 0.3s ease-out",
         shake: "shake 0.5s ease-in-out",
-        glow: "glow 2s ease-in-out infinite alternate",
         float: "float 3s ease-in-out infinite",
         "key-pop": "key-pop 0.15s ease-out",
         "race-progress": "race-progress 0.3s ease-out",
@@ -72,10 +74,6 @@ const config: Config = {
           "25%": { transform: "translateX(-5px)" },
           "75%": { transform: "translateX(5px)" },
         },
-        glow: {
-          "0%": { boxShadow: "0 0 5px rgba(139,92,246,0.3), 0 0 10px rgba(139,92,246,0.2)" },
-          "100%": { boxShadow: "0 0 10px rgba(139,92,246,0.4), 0 0 20px rgba(139,92,246,0.3), 0 0 30px rgba(139,92,246,0.2)" },
-        },
         "race-progress": {
           "0%": { transform: "scaleX(0)" },
           "100%": { transform: "scaleX(1)" },
@@ -90,11 +88,8 @@ const config: Config = {
         },
       },
       boxShadow: {
-        "glow-sm": "0 0 10px rgba(139, 92, 246, 0.15)",
-        "glow-md": "0 0 20px rgba(139, 92, 246, 0.2)",
-        "glow-lg": "0 0 30px rgba(139, 92, 246, 0.25)",
-        card: "0 4px 24px rgba(0, 0, 0, 0.3)",
-        "card-hover": "0 8px 32px rgba(0, 0, 0, 0.4)",
+        card: "0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06)",
+        "card-hover": "0 4px 12px rgba(0, 0, 0, 0.1)",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

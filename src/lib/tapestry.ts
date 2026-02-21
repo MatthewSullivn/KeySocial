@@ -333,6 +333,22 @@ export async function recordMatchResult(
   return createContent(profileId, content, "text", customProperties);
 }
 
+export async function createChallengePost(
+  profileId: string,
+  challengerUsername: string,
+  challengedUsername: string,
+  roomCode: string
+): Promise<TapestryContent> {
+  const content = `@${challengerUsername} challenged @${challengedUsername} to a typing race!`;
+  const extraProperties = [
+    { key: "postType", value: "challenge" },
+    { key: "challengerUsername", value: challengerUsername },
+    { key: "challengedUsername", value: challengedUsername },
+    { key: "roomCode", value: roomCode },
+  ];
+  return createContent(profileId, content, "text", extraProperties);
+}
+
 export async function getContents(
   limit = 50,
   offset = 0,

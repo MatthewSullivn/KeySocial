@@ -7,14 +7,14 @@ import { getContents, type TapestryContent } from "@/lib/tapestry";
 import AppHeader from "@/components/layout/AppHeader";
 
 export default function HomePage() {
-  const { profile } = useUserStore();
+  const { profile, isConnected } = useUserStore();
   const [recentMatches, setRecentMatches] = useState<TapestryContent[]>([]);
   const [stats, setStats] = useState({ wins: 0, losses: 0, bestWpm: 0, avgWpm: 0, totalMatches: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, [profile]);
+  }, [profile, isConnected]);
 
   async function loadData() {
     setLoading(true);
@@ -64,179 +64,192 @@ export default function HomePage() {
   }
 
   const rankLabel = stats.wins >= 50 ? "Legend" : stats.wins >= 30 ? "Diamond" : stats.wins >= 20 ? "Platinum" : stats.wins >= 10 ? "Gold" : stats.wins >= 5 ? "Silver" : "Bronze";
-  const rankColor = stats.wins >= 50 ? "text-yellow-300" : stats.wins >= 30 ? "text-purple-300" : stats.wins >= 20 ? "text-purple-400" : stats.wins >= 10 ? "text-yellow-400" : stats.wins >= 5 ? "text-gray-300" : "text-amber-600";
 
   return (
-    <div className="min-h-screen bg-bg-primary text-white">
+    <div className="min-h-screen bg-background text-text">
       <AppHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Hero Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-900/60 via-bg-card to-bg-card border border-purple-500/15">
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/30 rounded-full blur-[100px]" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-700/20 rounded-full blur-[80px]" />
-            <svg className="absolute right-8 bottom-0 h-64 w-64 text-purple-500/10" viewBox="0 0 200 200">
-              <path d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-5.3C93.5,8.6,82.2,21.5,70.6,32.2C59,42.9,47.1,51.4,35,58.8C22.9,66.2,10.6,72.5,-0.6,73.6C-11.8,74.7,-24.6,70.6,-36.4,63.6C-48.2,56.6,-59,46.7,-67.2,35.1C-75.4,23.5,-81,10.2,-81.1,-3.2C-81.2,-16.6,-75.8,-30.1,-66.4,-41.2C-57,-52.3,-43.6,-61,-30.3,-68.6C-17,-76.2,-3.8,-82.7,8.2,-96.9L44.7,-76.4Z" fill="currentColor" transform="translate(100 100)" />
-            </svg>
-          </div>
-
-          <div className="relative z-10 p-8 md:p-12 lg:p-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-semibold mb-6">
-              <span className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
-              LIVE &bull; DEVNET
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3 space-y-6">
+            {/* Profile Card */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <Link href={profile ? `/profile/${profile.username}` : "#"} className="flex flex-col items-center group">
+                <div className="relative mb-3">
+                  <div className="w-16 h-16 rounded-full bg-purple-500 flex items-center justify-center text-white text-2xl font-black">
+                    {profile ? (profile.username?.[0]?.toUpperCase() || "?") : "?"}
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-white" />
+                </div>
+                <h3 className="font-display font-bold text-lg text-gray-900 group-hover:text-purple-600 transition-colors">
+                  {profile ? profile.username : "Guest Racer"}
+                </h3>
+                <p className="text-sm text-gray-500">@{profile?.username || "connect_wallet"}</p>
+              </Link>
+              <div className="grid grid-cols-2 gap-3 mt-4 mb-4">
+                <div className="bg-gray-50 p-3 rounded-lg text-center">
+                  <span className="block text-xl font-bold text-gray-900">{stats.avgWpm || "—"}</span>
+                  <span className="text-xs text-gray-500 font-medium">Avg WPM</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg text-center">
+                  <span className="block text-xl font-bold text-gray-900">{stats.wins || "—"}</span>
+                  <span className="text-xs text-gray-500 font-medium">Wins</span>
+                </div>
+              </div>
+              <Link
+                href="/game?mode=create"
+                className="block w-full bg-purple-500 text-white font-bold py-2.5 rounded-lg text-sm text-center hover:bg-purple-600 transition-colors"
+              >
+                Start Race
+              </Link>
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-extrabold leading-tight tracking-tight mb-4">
-              Type Fast.{" "}
-              <span className="italic bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
-                Win On-Chain.
-              </span>
-            </h1>
+            {/* Performance */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <h4 className="font-display font-bold text-sm text-gray-900 mb-4">Performance</h4>
+              <div className="space-y-3">
+                <PerformanceBar label="Win Rate" value={stats.totalMatches > 0 ? Math.round((stats.wins / stats.totalMatches) * 100) : 0} />
+                <PerformanceBar label="Speed" value={Math.min(100, Math.round((stats.bestWpm / 150) * 100))} />
+                <PerformanceBar label="Rank Progress" value={Math.min(100, Math.round((stats.wins / (stats.wins < 5 ? 5 : stats.wins < 10 ? 10 : 20)) * 100))} />
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2">
+                  <span className="material-icons text-sm text-purple-500">military_tech</span>
+                  <span className="text-sm font-bold text-gray-900">{rankLabel}</span>
+                  <span className="text-xs text-gray-500">• {stats.totalMatches} matches</span>
+                </div>
+              </div>
+            </div>
 
-            <p className="text-gray-400 text-lg md:text-xl max-w-xl mb-8 leading-relaxed">
-              Compete in high-stakes typing races, climb the leaderboards, and prove your speed on Solana.
-            </p>
+            {/* Top Racers */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <h4 className="font-display font-bold text-sm text-gray-900 mb-4">Top Racers</h4>
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+                      i === 1 ? "bg-yellow-100 text-yellow-700" : i === 2 ? "bg-gray-100 text-gray-600" : "bg-orange-100 text-orange-700"
+                    )}>
+                      {i}
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                      ?
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">—</p>
+                      <p className="text-xs text-gray-500">— WPM</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link href="/leaderboard" className="block text-center text-sm text-purple-600 font-medium mt-4 hover:text-purple-700">
+                View Full Leaderboard
+              </Link>
+            </div>
+          </aside>
 
+          {/* Center Content */}
+          <div className="col-span-1 lg:col-span-6 space-y-6">
+            {/* Season Rank / WPM Card */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                <div className="relative w-28 h-28 shrink-0">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="#F3F4F6" strokeWidth="10" />
+                    <circle
+                      cx="60" cy="60" r="52" fill="none"
+                      stroke="url(#purpleGrad)"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray={`${Math.min(100, (stats.bestWpm / 150) * 100) * 3.267} 326.7`}
+                    />
+                    <defs>
+                      <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#7C3AED" />
+                        <stop offset="100%" stopColor="#A78BFA" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-display font-extrabold text-gray-900">{stats.bestWpm || "—"}</span>
+                    <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">WPM</span>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-display font-bold text-gray-900 mb-1">Season Rank</h3>
+                  <p className="text-sm text-gray-500 mb-3">
+                    {profile
+                      ? `${stats.totalMatches} matches played this season`
+                      : "Connect wallet to track your stats"}
+                  </p>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-purple-50 border border-purple-200 mb-4">
+                    <span className="material-icons text-sm text-purple-500">military_tech</span>
+                    <span className="text-sm font-bold text-purple-600">{rankLabel}</span>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                      <span className="uppercase font-bold tracking-wider">Level Progress</span>
+                      <span>{stats.wins} / {stats.wins < 5 ? 5 : stats.wins < 10 ? 10 : stats.wins < 20 ? 20 : stats.wins < 30 ? 30 : 50} wins</span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, (stats.wins / (stats.wins < 5 ? 5 : stats.wins < 10 ? 10 : stats.wins < 20 ? 20 : stats.wins < 30 ? 30 : 50)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard icon="sports_esports" label="Total Matches" value={String(stats.totalMatches)} />
+              <StatCard icon="local_fire_department" label="Win Rate" value={stats.totalMatches > 0 ? `${Math.round((stats.wins / stats.totalMatches) * 100)}%` : "—"} />
+              <StatCard icon="speed" label="Avg WPM" value={stats.avgWpm ? String(stats.avgWpm) : "—"} />
+              <StatCard icon="leaderboard" label="Best WPM" value={stats.bestWpm ? String(stats.bestWpm) : "—"} />
+            </div>
+
+            {/* Quick Actions */}
             <div className="flex flex-wrap gap-4">
               <Link
                 href="/game?mode=create"
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-glow-md"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-purple-500 text-white font-bold rounded-lg hover:bg-purple-600 transition-colors"
               >
                 <span className="material-icons text-lg">bolt</span>
                 Start Racing
               </Link>
               <Link
                 href="/leaderboard"
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-bg-elevated border border-purple-500/20 text-gray-300 font-bold rounded-xl hover:bg-bg-hover hover:text-white transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <span className="material-icons text-lg">emoji_events</span>
                 View Leaderboard
               </Link>
             </div>
           </div>
-        </div>
 
-        {/* Stats Dashboard */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Season Rank / WPM Card */}
-          <div className="lg:col-span-3 bg-bg-card border border-purple-500/10 rounded-2xl p-6 md:p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-              {/* Circular WPM gauge */}
-              <div className="relative w-32 h-32 shrink-0">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                  <circle cx="60" cy="60" r="52" fill="none" stroke="#1C1838" strokeWidth="10" />
-                  <circle
-                    cx="60" cy="60" r="52" fill="none"
-                    stroke="url(#purpleGrad)"
-                    strokeWidth="10"
-                    strokeLinecap="round"
-                    strokeDasharray={`${Math.min(100, (stats.bestWpm / 150) * 100) * 3.267} 326.7`}
-                  />
-                  <defs>
-                    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#7C3AED" />
-                      <stop offset="100%" stopColor="#A78BFA" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-3xl font-display font-extrabold">{stats.bestWpm || "—"}</span>
-                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">WPM</span>
-                </div>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-display font-bold mb-1">Season Rank</h3>
-                <p className="text-sm text-gray-500 mb-3">
-                  {profile
-                    ? `${stats.totalMatches} matches played this season`
-                    : "Connect wallet to track your stats"}
-                </p>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-purple-500/15 border border-purple-500/25 mb-4">
-                  <span className="material-icons text-sm text-purple-400">military_tech</span>
-                  <span className={`text-sm font-bold ${rankColor}`}>{rankLabel}</span>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
-                    <span className="uppercase font-bold tracking-wider">Level Progress</span>
-                    <span>{stats.wins} / {stats.wins < 5 ? 5 : stats.wins < 10 ? 10 : stats.wins < 20 ? 20 : stats.wins < 30 ? 30 : 50} wins</span>
-                  </div>
-                  <div className="w-full h-2 bg-bg-elevated rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-500"
-                      style={{
-                        width: `${Math.min(100, (stats.wins / (stats.wins < 5 ? 5 : stats.wins < 10 ? 10 : stats.wins < 20 ? 20 : stats.wins < 30 ? 30 : 50)) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+          {/* Right Sidebar (empty for now, matches mockup) */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <div className="text-xs text-gray-400 px-2">
+              &copy; 2026 KeySocial
             </div>
-          </div>
-
-          {/* Profile / Achievement Card */}
-          <div className="lg:col-span-2 bg-bg-card border border-purple-500/10 rounded-2xl p-6 md:p-8 flex flex-col items-center justify-center text-center">
-            <div className="relative mb-4">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-glow-md">
-                {profile ? (
-                  <span className="text-3xl font-display font-extrabold text-white">
-                    {profile.username?.[0]?.toUpperCase() || "?"}
-                  </span>
-                ) : (
-                  <span className="material-icons text-3xl text-white/80">person</span>
-                )}
-              </div>
-              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-accent-green border-2 border-bg-card" />
-            </div>
-
-            <h3 className="font-display font-bold text-lg mb-0.5">
-              {profile ? profile.username : "Guest Racer"}
-            </h3>
-            <p className="text-sm text-gray-500 mb-4">
-              {profile ? "Current Achievements" : "Connect to get started"}
-            </p>
-
-            {profile ? (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-accent-green/15 flex items-center justify-center" title="Wins">
-                  <span className="material-icons text-accent-green text-lg">emoji_events</span>
-                </div>
-                <div className="w-9 h-9 rounded-lg bg-purple-500/15 flex items-center justify-center" title="Speed">
-                  <span className="material-icons text-purple-400 text-lg">speed</span>
-                </div>
-                <div className="w-9 h-9 rounded-lg bg-accent-pink/15 flex items-center justify-center" title="Social">
-                  <span className="material-icons text-accent-pink text-lg">favorite</span>
-                </div>
-              </div>
-            ) : (
-              <Link
-                href="/create-profile"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/15 border border-purple-500/25 rounded-xl text-purple-300 text-sm font-semibold hover:bg-purple-500/25 transition-all"
-              >
-                Create Profile
-              </Link>
-            )}
-          </div>
+          </aside>
         </div>
 
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon="sports_esports" label="Total Matches" value={String(stats.totalMatches)} />
-          <StatCard icon="local_fire_department" label="Win Rate" value={stats.totalMatches > 0 ? `${Math.round((stats.wins / stats.totalMatches) * 100)}%` : "—"} />
-          <StatCard icon="speed" label="Avg WPM" value={stats.avgWpm ? String(stats.avgWpm) : "—"} />
-          <StatCard icon="leaderboard" label="Best WPM" value={stats.bestWpm ? String(stats.bestWpm) : "—"} />
-        </div>
-
-        {/* Recent Races */}
-        <div className="bg-bg-card border border-purple-500/10 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-purple-500/10">
+        {/* Match History - Full Width */}
+        <div className="mt-8 bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <div className="flex items-center gap-2">
-              <span className="material-icons text-purple-400">history</span>
-              <h2 className="font-display font-bold text-lg">Recent Races</h2>
+              <span className="material-icons text-purple-500">history</span>
+              <h2 className="font-display font-bold text-lg text-gray-900">Match History</h2>
             </div>
-            <Link href="/leaderboard" className="text-sm text-purple-400 hover:text-purple-300 font-semibold transition-colors">
+            <Link href="/leaderboard" className="text-sm text-purple-600 hover:text-purple-700 font-semibold transition-colors">
               View All
             </Link>
           </div>
@@ -248,14 +261,14 @@ export default function HomePage() {
             </div>
           ) : recentMatches.length === 0 ? (
             <div className="p-8 text-center">
-              <span className="material-icons text-4xl text-gray-600 mb-2 block">sports_esports</span>
+              <span className="material-icons text-4xl text-gray-300 mb-2 block">sports_esports</span>
               <p className="text-gray-500 mb-3">No races yet</p>
-              <Link href="/game" className="text-purple-400 font-semibold hover:text-purple-300 text-sm">
+              <Link href="/game" className="text-purple-600 font-semibold hover:text-purple-700 text-sm">
                 Play your first race →
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-purple-500/5">
+            <div className="divide-y divide-gray-100">
               {recentMatches.map((match, idx) => {
                 const p = match.properties || {};
                 const pid = profile?.id || profile?.username || "";
@@ -263,15 +276,15 @@ export default function HomePage() {
                 const wpm = parseInt(isWinner ? p.winnerWPM : p.loserWPM, 10) || 0;
                 const timeAgo = match.createdAt ? formatTimeAgo(match.createdAt) : "—";
                 return (
-                  <div key={match.id || idx} className="flex items-center justify-between px-6 py-4 hover:bg-white/[0.02] transition-colors">
+                  <div key={match.id || idx} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-4">
-                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", isWinner ? "bg-accent-green/15" : "bg-accent-red/15")}>
-                        <span className={cn("material-icons", isWinner ? "text-accent-green" : "text-accent-red")}>
+                      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", isWinner ? "bg-green-50" : "bg-red-50")}>
+                        <span className={cn("material-icons", isWinner ? "text-green-600" : "text-red-500")}>
                           {isWinner ? "emoji_events" : "close"}
                         </span>
                       </div>
                       <div>
-                        <p className="font-semibold text-sm">
+                        <p className="font-semibold text-sm text-gray-900">
                           Race vs {isWinner ? (p.loserUsername || "Opponent") : (p.winnerUsername || "Opponent")}
                         </p>
                         <p className="text-xs text-gray-500">{timeAgo} &bull; {p.difficulty || "Ranked"}</p>
@@ -279,7 +292,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex items-center gap-6 text-right">
                       <div>
-                        <span className={cn("text-xs font-bold", isWinner ? "text-accent-green" : "text-accent-red")}>
+                        <span className={cn("text-xs font-bold", isWinner ? "text-green-600" : "text-red-500")}>
                           {isWinner ? "1st Place" : "2nd Place"}
                         </span>
                         <p className="text-xs text-gray-500">{wpm} WPM</p>
@@ -298,13 +311,27 @@ export default function HomePage() {
 
 function StatCard({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <div className="bg-bg-card border border-purple-500/10 rounded-xl p-5 flex items-center gap-4">
-      <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
-        <span className="material-icons text-purple-400">{icon}</span>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
+      <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+        <span className="material-icons text-purple-500">{icon}</span>
       </div>
       <div className="min-w-0">
         <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">{label}</p>
-        <p className="text-xl font-display font-extrabold">{value}</p>
+        <p className="text-xl font-display font-extrabold text-gray-900">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function PerformanceBar({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-1">
+        <span className="text-gray-600 font-medium">{label}</span>
+        <span className="text-gray-900 font-bold">{value}%</span>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full bg-purple-500 rounded-full transition-all" style={{ width: `${value}%` }} />
       </div>
     </div>
   );

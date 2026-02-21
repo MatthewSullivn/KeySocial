@@ -44,7 +44,7 @@ export default function AppHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full bg-bg-primary/80 backdrop-blur-xl border-b border-purple-500/10",
+        "sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-gray-200",
         className
       )}
     >
@@ -52,10 +52,10 @@ export default function AppHeader({ className }: { className?: string }) {
         <div className="h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center text-white font-extrabold text-sm shadow-glow-sm">
+              <div className="w-9 h-9 bg-purple-500 rounded-lg flex items-center justify-center text-white font-extrabold text-sm">
                 K
               </div>
-              <span className="font-display font-bold text-xl tracking-tight text-white">
+              <span className="font-display font-bold text-xl tracking-tight text-gray-900">
                 KeySocial
               </span>
             </Link>
@@ -66,10 +66,10 @@ export default function AppHeader({ className }: { className?: string }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "px-3.5 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5",
+                    "px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
                     isActive(item.href)
-                      ? "bg-purple-500/15 text-purple-300 shadow-glow-sm"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                      ? "text-purple-600 bg-purple-50"
+                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
                   )}
                 >
                   <span className="material-icons-outlined text-[18px]">{item.icon}</span>
@@ -80,17 +80,22 @@ export default function AppHeader({ className }: { className?: string }) {
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-xs font-medium text-green-700">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              Solana Mainnet
+            </div>
+
             <Link
               href={profileHref}
               className={cn(
-                "hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all",
+                "hidden md:flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all",
                 isProfileActive
-                  ? "bg-purple-500/15 text-purple-300"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
+                  ? "text-purple-600 bg-purple-50"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
               )}
             >
               {profile ? (
-                <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 text-white text-xs font-bold flex items-center justify-center">
+                <span className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center">
                   {profile.username?.[0]?.toUpperCase() || "?"}
                 </span>
               ) : (
@@ -100,11 +105,11 @@ export default function AppHeader({ className }: { className?: string }) {
             </Link>
 
             <div className="hidden sm:block">
-              <WalletMultiButton className="!bg-gradient-to-r !from-purple-600 !to-purple-500 !text-white !px-5 !py-2 !rounded-xl !text-sm !font-bold !border-0 hover:!opacity-90" />
+              <WalletMultiButton className="!bg-white !text-purple-600 !px-5 !py-2 !rounded-lg !text-sm !font-bold !border !border-purple-500 hover:!bg-purple-50" />
             </div>
 
             <button
-              className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Toggle menu"
             >
@@ -115,20 +120,20 @@ export default function AppHeader({ className }: { className?: string }) {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-purple-500/10 bg-bg-primary/95 backdrop-blur-xl">
+        <div className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-2">
-            <WalletMultiButton className="!justify-center !bg-gradient-to-r !from-purple-600 !to-purple-500 !text-white !rounded-xl" />
-            <div className="h-px bg-purple-500/10 my-2" />
+            <WalletMultiButton className="!justify-center !bg-white !text-purple-600 !rounded-lg !border !border-purple-500" />
+            <div className="h-px bg-gray-200 my-2" />
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2",
+                  "px-4 py-3 rounded-lg text-sm font-semibold transition-all flex items-center gap-2",
                   isActive(item.href)
-                    ? "bg-purple-500/15 text-purple-300"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                    ? "bg-purple-50 text-purple-600"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
                 )}
               >
                 <span className="material-icons-outlined text-[18px]">{item.icon}</span>
@@ -139,10 +144,10 @@ export default function AppHeader({ className }: { className?: string }) {
               href={profileHref}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2",
+                "px-4 py-3 rounded-lg text-sm font-semibold transition-all flex items-center gap-2",
                 isProfileActive
-                  ? "bg-purple-500/15 text-purple-300"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
+                  ? "bg-purple-50 text-purple-600"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
               )}
             >
               <span className="material-icons-outlined text-[18px]">person</span>

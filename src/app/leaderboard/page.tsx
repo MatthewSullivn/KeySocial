@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getContents, type TapestryContent } from "@/lib/tapestry";
+import { getContents, getFollowing, type TapestryContent } from "@/lib/tapestry";
 import { useUserStore } from "@/store/user-store";
 import Link from "next/link";
 import AppHeader from "@/components/layout/AppHeader";
+
+type LeaderboardTab = "global" | "friends";
+type TimeFilter = "all" | "season" | "weekly";
 
 interface LeaderboardEntry {
   username: string;
@@ -65,9 +68,28 @@ function aggregateMatches(tapestryContents: TapestryContent[]): Map<string, Lead
 export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<LeaderboardTab>("global");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [friendUsernames, setFriendUsernames] = useState<Set<string> | null>(null);
+  const [friendsLoading, setFriendsLoading] = useState(false);
   const { profile } = useUserStore();
 
   useEffect(() => { loadLeaderboard(); }, []);
+
+  useEffect(() => {
+    if (tab !== "friends" || !profile) return;
+    const pid = profile.id || profile.username;
+    if (!pid) return;
+    setFriendsLoading(true);
+    getFollowing(pid, 200, 0)
+      .then((list) => {
+        const set = new Set(list.map((p) => p.username).filter(Boolean));
+        set.add(profile.username);
+        setFriendUsernames(set);
+      })
+      .catch(() => setFriendUsernames(new Set()))
+      .finally(() => setFriendsLoading(false));
+  }, [tab, profile]);
 
   async function loadLeaderboard() {
     setLoading(true);
@@ -112,74 +134,129 @@ export default function LeaderboardPage() {
     }
   }
 
-  const sortedEntries = [...entries].sort((a, b) => {
+  const allSorted = [...entries].sort((a, b) => {
     const aTotal = a.wins + a.losses;
     const bTotal = b.wins + b.losses;
     if (bTotal !== aTotal) return bTotal - aTotal;
     return b.bestWPM - a.bestWPM;
   });
 
-  const top3 = sortedEntries.slice(0, 3);
+  const sortedEntries = tab === "friends" && friendUsernames
+    ? allSorted.filter((e) => friendUsernames.has(e.username))
+    : allSorted;
+
   const myId = profile?.id || profile?.username;
 
   return (
-    <div className="min-h-screen bg-bg-primary text-white flex flex-col">
+    <div className="min-h-screen bg-background text-text flex flex-col">
       <AppHeader />
 
       <main className="flex-grow w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4">
-            Global Racing Standings
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mb-2">
+            Global Standing <span className="text-purple-500">&amp; Analytics</span>
           </h1>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            Top typists on Solana. Join the race, type fast, and climb the ranks.
+          <p className="text-gray-500">
+            {tab === "friends"
+              ? "See how you stack up against the racers you follow."
+              : "Top typists on Solana. Join the race, type fast, and climb the ranks."}
           </p>
         </div>
 
-        {/* Podium */}
-        <div className="flex flex-col md:flex-row items-end justify-center gap-6 mb-20 px-4">
-          <PodiumBlock place={2} entry={top3[1]} isMe={top3[1]?.profileId === myId} />
-          <PodiumBlock place={1} entry={top3[0]} isMe={top3[0]?.profileId === myId} />
-          <PodiumBlock place={3} entry={top3[2]} isMe={top3[2]?.profileId === myId} />
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <div className="flex items-center border border-gray-200 rounded-lg p-1 bg-white">
+            {(["all", "season", "weekly"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setTimeFilter(f)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  timeFilter === f
+                    ? "bg-purple-500 text-white"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+              >
+                {f === "all" ? "All Time" : f === "season" ? "Season 1" : "Weekly"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center border border-gray-200 rounded-lg p-1 bg-white">
+            <button
+              onClick={() => setTab("global")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                tab === "global"
+                  ? "bg-purple-500 text-white"
+                  : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              Global
+            </button>
+            <button
+              onClick={() => setTab("friends")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                tab === "friends"
+                  ? "bg-purple-500 text-white"
+                  : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              Friends
+            </button>
+          </div>
         </div>
 
         {/* Table */}
-        <div className="bg-bg-card border border-purple-500/10 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-purple-500/10 bg-bg-elevated text-xs font-bold text-gray-500 uppercase tracking-wider">
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-gray-200 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider">
             <div className="col-span-1 text-center">Rank</div>
-            <div className="col-span-3">Player</div>
-            <div className="col-span-2 text-center">Best WPM</div>
+            <div className="col-span-3">Typist</div>
+            <div className="col-span-2 text-center">Avg WPM</div>
             <div className="col-span-2 text-center">Win Rate</div>
-            <div className="col-span-2 text-center">Matches</div>
-            <div className="col-span-2 text-right">Earnings</div>
+            <div className="col-span-2 text-center">Total Matches</div>
+            <div className="col-span-2 text-right">Total SOL Won</div>
           </div>
 
-          {loading ? (
+          {loading || (tab === "friends" && friendsLoading) ? (
             <div className="p-10 text-center text-gray-500">
               <span className="material-icons animate-spin mr-2 align-middle">progress_activity</span>
               Loading…
             </div>
+          ) : tab === "friends" && sortedEntries.length === 0 ? (
+            <div className="p-10 text-center text-gray-500">
+              <span className="material-icons text-4xl mb-2 block text-gray-300">group</span>
+              Follow some racers to see them here!
+            </div>
           ) : sortedEntries.length === 0 ? (
             <div className="p-10 text-center text-gray-500">
-              <span className="material-icons text-4xl mb-2 block">sports_esports</span>
-              No matches played yet. <Link href="/game" className="text-purple-400 font-bold hover:underline">Play your first game!</Link>
+              <span className="material-icons text-4xl mb-2 block text-gray-300">sports_esports</span>
+              No matches played yet. <Link href="/game" className="text-purple-600 font-bold hover:underline">Play your first game!</Link>
             </div>
           ) : (
-            <div className="divide-y divide-purple-500/5">
+            <div className="divide-y divide-gray-100">
               {sortedEntries.map((entry, idx) => {
                 const rank = idx + 1;
                 const total = entry.wins + entry.losses;
                 const winRate = total > 0 ? Math.round((entry.wins / total) * 1000) / 10 : 0;
                 const isMe = entry.profileId === myId;
+
+                const rowBorderClass = rank === 1
+                  ? "border-l-4 border-l-yellow-400 bg-yellow-50/50"
+                  : rank === 2
+                  ? "border-l-4 border-l-gray-400 bg-gray-50/50"
+                  : rank === 3
+                  ? "border-l-4 border-l-orange-400 bg-orange-50/50"
+                  : isMe
+                  ? "border-l-4 border-l-purple-500 bg-purple-50/50"
+                  : "";
+
                 return (
                   <Link
                     key={entry.profileId}
                     href={`/profile/${entry.username}`}
-                    className={`grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-purple-500/5 transition-colors ${isMe ? "bg-purple-500/5 border-l-4 border-l-purple-500" : ""}`}
+                    className={`grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors ${rowBorderClass}`}
                   >
                     <div className="col-span-1 text-center font-bold text-gray-500">
                       {rank <= 3 ? (
-                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${rank === 1 ? "bg-yellow-400 text-black" : rank === 2 ? "bg-gray-400 text-black" : "bg-amber-600 text-white"}`}>
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${rank === 1 ? "bg-yellow-400 text-yellow-900" : rank === 2 ? "bg-gray-300 text-gray-700" : "bg-orange-400 text-white"}`}>
                           {rank}
                         </span>
                       ) : (
@@ -187,13 +264,13 @@ export default function LeaderboardPage() {
                       )}
                     </div>
                     <div className="col-span-3 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-bg-elevated border border-purple-500/15 flex items-center justify-center font-bold">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center font-bold text-gray-600">
                         {entry.username[0]?.toUpperCase() || "?"}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold truncate flex items-center gap-1.5">
-                          {entry.username}
-                          {isMe && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">YOU</span>}
+                        <p className="font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                          @{entry.username}
+                          {isMe && <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 font-bold">YOU</span>}
                         </p>
                         <p className="text-xs text-gray-500">
                           {entry.wins}W - {entry.losses}L
@@ -201,19 +278,19 @@ export default function LeaderboardPage() {
                       </div>
                     </div>
                     <div className="col-span-2 text-center">
-                      <span className="font-mono font-bold text-lg">{entry.bestWPM}</span>
+                      <span className="font-mono font-bold text-lg text-gray-900">{entry.bestWPM}</span>
                       <span className="text-xs text-gray-500 ml-1">WPM</span>
                     </div>
                     <div className="col-span-2 text-center">
-                      <span className="font-mono">{winRate}%</span>
-                      <div className="w-full bg-bg-elevated h-1.5 rounded-full mt-1 overflow-hidden">
+                      <span className="font-mono text-gray-900">{winRate}%</span>
+                      <div className="w-full bg-gray-100 h-1.5 rounded-full mt-1 overflow-hidden">
                         <div className="bg-purple-500 h-full rounded-full" style={{ width: `${winRate}%` }} />
                       </div>
                     </div>
-                    <div className="col-span-2 text-center font-mono text-sm">
+                    <div className="col-span-2 text-center font-mono text-sm text-gray-700">
                       {total}
                     </div>
-                    <div className="col-span-2 text-right font-mono font-bold">
+                    <div className="col-span-2 text-right font-mono font-bold text-purple-600">
                       {entry.totalEarnings > 0 ? "+" : ""}{entry.totalEarnings.toFixed(2)} SOL
                     </div>
                   </Link>
@@ -221,48 +298,14 @@ export default function LeaderboardPage() {
               })}
             </div>
           )}
+
+          {sortedEntries.length > 0 && (
+            <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 text-sm text-gray-500">
+              Showing 1 to {sortedEntries.length} of {sortedEntries.length} typists
+            </div>
+          )}
         </div>
       </main>
     </div>
   );
-}
-
-function PodiumBlock({ place, entry, isMe }: { place: 1 | 2 | 3; entry?: LeaderboardEntry; isMe?: boolean }) {
-  const name = entry?.username || "—";
-  const handle = entry ? `@${entry.username.toLowerCase().replace(/\s+/g, "_")}` : "—";
-  const totalGames = entry ? entry.wins + entry.losses : 0;
-  const ring = place === 1 ? "border-yellow-400" : place === 2 ? "border-gray-400" : "border-amber-600";
-  const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
-
-  const className = `podium-block w-full md:w-1/3 max-w-xs relative ${place === 1 ? "order-1 md:-order-none" : "order-2 md:order-none"} group`;
-  const inner = (
-    <>
-      <div className="bg-bg-card border border-purple-500/10 rounded-2xl p-6 mb-4 relative z-10 flex flex-col items-center group-hover:border-purple-500/30 transition-colors">
-        {isMe && (
-          <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">YOU</span>
-        )}
-        <div className={`w-16 h-16 rounded-full bg-bg-elevated mb-3 border-2 ${ring} overflow-hidden flex items-center justify-center font-bold text-xl`}>
-          {name[0]?.toUpperCase() || "?"}
-        </div>
-        <h3 className="font-bold text-lg group-hover:text-purple-400 transition-colors">{name}</h3>
-        <div className="text-gray-500 text-sm font-mono mb-2">{handle}</div>
-        {entry ? (
-          <div className="text-center space-y-1">
-            <div className="font-mono font-bold text-lg">{entry.bestWPM} <span className="text-xs text-gray-500">WPM</span></div>
-            <div className="text-xs text-gray-500">{entry.wins}W - {entry.losses}L ({totalGames} matches)</div>
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500">No data</div>
-        )}
-      </div>
-      <div className="h-20 rounded-2xl bg-bg-elevated border border-purple-500/10 flex items-center justify-center">
-        <span className="text-2xl font-extrabold">{medal} {place}</span>
-      </div>
-    </>
-  );
-
-  if (entry) {
-    return <Link href={`/profile/${entry.username}`} className={className}>{inner}</Link>;
-  }
-  return <div className={className}>{inner}</div>;
 }

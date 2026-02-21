@@ -9,10 +9,22 @@ import { FeedContent } from "./FeedContent";
 
 type FeedFilter = "following" | "top" | "global";
 
-export type PendingPostType = "normal" | "flex" | "challenge";
+export type PendingPostType = "normal" | "flex" | "challenge" | "match_result";
 export interface PendingMeta {
   wpm?: number;
   challengerUsername?: string;
+  roomCode?: string;
+  challengedUsername?: string;
+}
+
+export interface MatchResultData {
+  winnerUsername: string;
+  loserUsername: string;
+  winnerWPM: number;
+  loserWPM: number;
+  winnerAccuracy: number;
+  loserAccuracy: number;
+  stakeAmount: number;
 }
 
 export interface LocalPost {
@@ -26,10 +38,36 @@ export interface LocalPost {
   hasLiked?: boolean;
   postType?: PendingPostType;
   meta?: PendingMeta;
+  matchResult?: MatchResultData;
 }
 
 function tapestryContentToLocalPost(tc: TapestryContent): LocalPost | null {
-  if (tc.properties?.type === "match_result") return null;
+  const isMatch = tc.properties?.type === "match_result";
+
+  if (isMatch) {
+    const p = tc.properties!;
+    return {
+      id: tc.id,
+      author: p.winnerUsername || tc.profile?.username || "Racer",
+      handle: `@${p.winnerUsername || tc.profile?.username || "racer"}`,
+      content: tc.content || "",
+      createdAt: tc.createdAt || new Date().toISOString(),
+      likes: tc.socialCounts?.likes || 0,
+      comments: tc.socialCounts?.comments || 0,
+      hasLiked: tc.hasLiked || false,
+      postType: "match_result",
+      matchResult: {
+        winnerUsername: p.winnerUsername || "Unknown",
+        loserUsername: p.loserUsername || "Unknown",
+        winnerWPM: parseInt(p.winnerWPM || "0"),
+        loserWPM: parseInt(p.loserWPM || "0"),
+        winnerAccuracy: parseInt(p.winnerAccuracy || "0"),
+        loserAccuracy: parseInt(p.loserAccuracy || "0"),
+        stakeAmount: parseFloat(p.stakeAmount || "0"),
+      },
+    };
+  }
+
   const text = tc.content || tc.properties?.text || "";
   if (!text.trim()) return null;
 
@@ -37,6 +75,8 @@ function tapestryContentToLocalPost(tc: TapestryContent): LocalPost | null {
   const meta: PendingMeta = {};
   if (tc.properties?.wpm) meta.wpm = parseInt(tc.properties.wpm, 10);
   if (tc.properties?.challengerUsername) meta.challengerUsername = tc.properties.challengerUsername;
+  if (tc.properties?.roomCode) meta.roomCode = tc.properties.roomCode;
+  if (tc.properties?.challengedUsername) meta.challengedUsername = tc.properties.challengedUsername;
 
   return {
     id: tc.id,
@@ -172,6 +212,12 @@ export default function FeedView() {
       }
       if (pendingMeta.challengerUsername) {
         extraProps.push({ key: "challengerUsername", value: pendingMeta.challengerUsername });
+      }
+      if (pendingMeta.roomCode) {
+        extraProps.push({ key: "roomCode", value: pendingMeta.roomCode });
+      }
+      if (pendingMeta.challengedUsername) {
+        extraProps.push({ key: "challengedUsername", value: pendingMeta.challengedUsername });
       }
 
       await createContent(profileId, postText.trim(), "text", extraProps);

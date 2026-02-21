@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useUserStore } from "@/store/user-store";
@@ -14,19 +14,23 @@ import {
   checkFollowStatus,
   getContents,
   updateProfile,
+  createChallengePost,
   type TapestryProfile,
   type TapestryContent,
 } from "@/lib/tapestry";
+import { generateRoomCode } from "@/lib/multiplayer";
 import { shortenAddress } from "@/lib/utils";
 import { toast } from "sonner";
 import AppHeader from "@/components/layout/AppHeader";
 
 export default function ProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const username = params.username as string;
   const { connected, publicKey } = useWallet();
   const { profile: myProfile } = useUserStore();
   const connectedWallet = publicKey?.toBase58() || "";
+  const [challengeLoading, setChallengeLoading] = useState(false);
 
   const [profile, setProfile] = useState<TapestryProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,6 +51,7 @@ export default function ProfilePage() {
   const [editSaving, setEditSaving] = useState(false);
   const [nftList, setNftList] = useState<{ image: string; name: string }[]>([]);
   const [nftLoading, setNftLoading] = useState(false);
+  const [showAllMatches, setShowAllMatches] = useState(false);
   const [stats, setStats] = useState({
     wins: 0,
     losses: 0,
@@ -142,6 +147,22 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleChallenge() {
+    if (!myProfile || !profile || challengeLoading) return;
+    setChallengeLoading(true);
+    try {
+      const room = generateRoomCode();
+      const pid = myProfile.id || myProfile.username;
+      await createChallengePost(pid, myProfile.username, profile.username, room);
+      toast.success(`Challenge sent to ${profile.username}!`);
+      router.push(`/game?mode=create&room=${room}`);
+    } catch (err) {
+      console.error("Failed to create challenge:", err);
+      toast.error("Failed to create challenge");
+      setChallengeLoading(false);
+    }
+  }
+
   function handleCopyWallet() {
     if (!profile?.walletAddress) return;
     navigator.clipboard.writeText(profile.walletAddress).then(() => {
@@ -217,10 +238,10 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-primary text-white flex flex-col">
+      <div className="min-h-screen bg-background text-text flex flex-col">
         <AppHeader />
         <div className="flex-1 flex items-center justify-center min-h-[50vh]">
-          <div className="text-gray-400 flex items-center gap-2">
+          <div className="text-gray-500 flex items-center gap-2">
             <span className="material-icons animate-spin">progress_activity</span>
             Loading profile…
           </div>
@@ -231,16 +252,16 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-bg-primary text-white flex flex-col">
+      <div className="min-h-screen bg-background text-text flex flex-col">
         <AppHeader />
         <div className="flex-1 flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
-            <div className="w-20 h-20 bg-purple-500/15 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-purple-500/25">
-              <span className="material-icons text-4xl text-purple-400">person_off</span>
+            <div className="w-20 h-20 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-purple-200">
+              <span className="material-icons text-4xl text-purple-500">person_off</span>
             </div>
-            <div className="text-2xl font-extrabold mb-2">Profile Not Found</div>
-            <p className="text-gray-400 mt-2">This racer hasn&apos;t created their profile yet.</p>
-            <Link href="/create-profile" className="inline-flex mt-6 bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all shadow-glow-sm">
+            <div className="text-2xl font-extrabold text-gray-900 mb-2">Profile Not Found</div>
+            <p className="text-gray-500 mt-2">This racer hasn&apos;t created their profile yet.</p>
+            <Link href="/create-profile" className="inline-flex mt-6 bg-purple-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-600 transition-colors">
               Create Profile
             </Link>
           </div>
@@ -252,165 +273,176 @@ export default function ProfilePage() {
   const totalMatches = stats.wins + stats.losses;
   const winRate = totalMatches > 0 ? Math.round((stats.wins / totalMatches) * 1000) / 10 : 0;
   const meId = profile.id || profile.username;
+  const visibleMatches = showAllMatches ? matchHistory : matchHistory.slice(0, 10);
 
   return (
-    <div className="min-h-screen bg-bg-primary text-white">
+    <div className="min-h-screen bg-background text-text">
       <AppHeader />
 
       <main className="max-w-6xl mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row gap-8 items-start mb-16">
-          <div className="flex-shrink-0 relative group">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 shadow-glow-md overflow-hidden relative z-10 flex items-center justify-center text-white text-5xl font-black">
-              {profile.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.image}
-                  alt={profile.username}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                profile.username?.[0]?.toUpperCase() || "?"
-              )}
-            </div>
-            <div className="absolute bottom-2 right-2 z-20 w-6 h-6 bg-accent-green border-4 border-bg-primary rounded-full"></div>
-          </div>
+        {/* Header Card */}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-8">
+          <div className="flex">
+            <div className="w-1.5 bg-purple-500 shrink-0" />
+            <div className="flex-1 p-6 md:p-8">
+              <div className="flex flex-col md:flex-row gap-6 items-start">
+                <div className="flex-shrink-0">
+                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-purple-500 overflow-hidden flex items-center justify-center text-white text-4xl font-black">
+                    {profile.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profile.image} alt={profile.username} className="w-full h-full object-cover" />
+                    ) : (
+                      profile.username?.[0]?.toUpperCase() || "?"
+                    )}
+                  </div>
+                </div>
 
-          <div className="flex-grow pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
-              <div>
-                <h1 className="font-display font-bold text-4xl md:text-5xl mb-1">
-                  {profile.username}
-                </h1>
-                <p className="text-gray-400 font-mono text-sm flex items-center gap-2">
-                  <span className="material-icons-outlined text-base text-purple-400">verified</span>
-                  Professional Racer
-                  <span className="w-1 h-1 rounded-full bg-gray-500"></span>
-                  Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—"}
-                </p>
+                <div className="flex-grow">
+                  <div className="flex flex-wrap items-center gap-3 mb-1">
+                    <h1 className="font-display font-bold text-3xl md:text-4xl text-gray-900">
+                      {profile.username}
+                    </h1>
+                    <span className="material-icons-outlined text-base text-purple-500">verified</span>
+                  </div>
+                  <p className="text-gray-500 text-sm flex items-center gap-2 flex-wrap">
+                    Professional Racer
+                    <span className="w-1 h-1 rounded-full bg-gray-400"></span>
+                    ID: #{(profile.id || profile.username).slice(0, 6).toUpperCase()}
+                    <span className="w-1 h-1 rounded-full bg-gray-400"></span>
+                    Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                  </p>
+
+                  {profile.bio && (
+                    <p className="text-gray-600 leading-relaxed max-w-3xl mt-3">{profile.bio}</p>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => { setShowFollowers(true); setShowFollowing(false); }}
+                      className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                    >
+                      <span className="material-icons-outlined text-base text-gray-500">groups</span>
+                      <b className="text-gray-900">{followerCount}</b> <span className="text-gray-500">Followers</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowFollowing(true); setShowFollowers(false); }}
+                      className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                    >
+                      <span className="material-icons-outlined text-base text-gray-500">group_add</span>
+                      <b className="text-gray-900">{followingCount}</b> <span className="text-gray-500">Following</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyWallet}
+                      className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 font-mono text-sm hover:bg-gray-100 transition-colors cursor-pointer group"
+                      title="Click to copy full address"
+                    >
+                      <span className="material-icons-outlined text-base text-gray-500">account_balance_wallet</span>
+                      <span className="text-gray-700">{profile.walletAddress ? shortenAddress(profile.walletAddress) : "—"}</span>
+                      <span className="material-icons text-sm text-gray-400 group-hover:text-purple-500 transition-colors">content_copy</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-4 flex gap-3 items-center flex-wrap">
+                    {isOwnProfile && (
+                      <button
+                        onClick={openEditModal}
+                        className="px-5 py-2 rounded-lg font-bold text-sm bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                      >
+                        <span className="material-icons text-lg">edit</span>
+                        Edit Profile
+                      </button>
+                    )}
+                    {!connected ? (
+                      <span className="text-sm text-gray-500">Connect wallet to follow</span>
+                    ) : !isOwnProfile ? (
+                      <button
+                        onClick={handleFollow}
+                        disabled={followLoading}
+                        className="px-5 py-2 rounded-lg font-bold text-sm bg-purple-500 text-white hover:bg-purple-600 transition-colors"
+                      >
+                        {isFollowing ? "Unfollow" : "Follow"}
+                      </button>
+                    ) : null}
+                    <button
+                      onClick={handleChallenge}
+                      disabled={challengeLoading || !myProfile}
+                      className="px-5 py-2 rounded-lg font-bold text-sm bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {challengeLoading ? (
+                        <><span className="material-icons animate-spin text-sm">progress_activity</span> Sending…</>
+                      ) : (
+                        <>
+                          <span className="material-icons text-lg">swords</span>
+                          Challenge
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
-
-              <div className="flex gap-3 items-center flex-wrap">
-                {isOwnProfile && (
-                  <button
-                    onClick={openEditModal}
-                    className="px-5 py-2 rounded-xl font-bold text-sm bg-bg-elevated border border-purple-500/20 text-gray-300 hover:bg-bg-hover transition-all flex items-center gap-1.5"
-                  >
-                    <span className="material-icons text-lg">edit</span>
-                    Edit profile
-                  </button>
-                )}
-                {!connected ? (
-                  <span className="text-sm text-gray-500">Connect wallet to follow</span>
-                ) : !isOwnProfile ? (
-                  <button
-                    onClick={handleFollow}
-                    disabled={followLoading}
-                    className="px-5 py-2 rounded-xl font-bold text-sm bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:opacity-90 transition-all"
-                  >
-                    {isFollowing ? "Unfollow" : "Follow"}
-                  </button>
-                ) : null}
-                <Link
-                  href="/game?mode=create"
-                  className="px-5 py-2 rounded-xl font-bold text-sm bg-bg-elevated border border-purple-500/20 text-gray-300 hover:bg-bg-hover transition-all"
-                >
-                  Challenge
-                </Link>
-              </div>
-            </div>
-
-            {profile.bio && (
-              <p className="text-gray-400 leading-relaxed max-w-3xl mt-4">{profile.bio}</p>
-            )}
-
-            <div className="mt-6 flex flex-wrap gap-4 text-sm">
-              <button
-                type="button"
-                onClick={() => { setShowFollowers(true); setShowFollowing(false); }}
-                className="inline-flex items-center gap-2 bg-bg-card border border-purple-500/10 rounded-xl px-4 py-2 hover:border-purple-500/30 transition-colors cursor-pointer"
-              >
-                <span className="material-icons-outlined text-base text-gray-400">groups</span>
-                <b>{followerCount}</b> Followers
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowFollowing(true); setShowFollowers(false); }}
-                className="inline-flex items-center gap-2 bg-bg-card border border-purple-500/10 rounded-xl px-4 py-2 hover:border-purple-500/30 transition-colors cursor-pointer"
-              >
-                <span className="material-icons-outlined text-base text-gray-400">group_add</span>
-                <b>{followingCount}</b> Following
-              </button>
-              <button
-                type="button"
-                onClick={handleCopyWallet}
-                className="inline-flex items-center gap-2 bg-bg-card border border-purple-500/10 rounded-xl px-4 py-2 font-mono hover:border-purple-500/30 transition-colors cursor-pointer group"
-                title="Click to copy full address"
-              >
-                <span className="material-icons-outlined text-base text-gray-400">account_balance_wallet</span>
-                {profile.walletAddress ? shortenAddress(profile.walletAddress) : "—"}
-                <span className="material-icons text-sm text-gray-500 group-hover:text-purple-400 transition-colors">content_copy</span>
-              </button>
             </div>
           </div>
         </div>
 
         {/* Edit profile modal */}
         {showEdit && profile && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => !editSaving && setShowEdit(false)}>
-            <div className="bg-bg-card rounded-2xl border border-purple-500/15 w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-purple-500/10">
-                <h3 className="font-display font-bold text-lg">Edit profile</h3>
-                <button type="button" onClick={() => !editSaving && setShowEdit(false)} className="text-gray-500 hover:text-white transition-colors">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => !editSaving && setShowEdit(false)}>
+            <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h3 className="font-display font-bold text-lg text-gray-900">Edit profile</h3>
+                <button type="button" onClick={() => !editSaving && setShowEdit(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <span className="material-icons">close</span>
                 </button>
               </div>
               <form onSubmit={handleSaveProfile} className="flex flex-col overflow-y-auto flex-1 p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-1">Username</label>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">Username</label>
                   <input
                     type="text"
                     value={editUsername}
                     onChange={(e) => setEditUsername(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-bg-elevated border border-purple-500/15 text-white placeholder:text-gray-500 focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/30 outline-none"
+                    className="w-full px-4 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
                     placeholder="your_username"
                     required
                     maxLength={20}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-1">Bio</label>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">Bio</label>
                   <textarea
                     value={editBio}
                     onChange={(e) => setEditBio(e.target.value)}
                     rows={3}
-                    className="w-full px-4 py-2.5 rounded-xl bg-bg-elevated border border-purple-500/15 text-white placeholder:text-gray-500 focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/30 outline-none resize-none"
+                    className="w-full px-4 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none resize-none"
                     placeholder="Tell the community about yourself..."
                     maxLength={160}
                   />
-                  <p className="text-xs text-gray-500 mt-1">{editBio.length}/160</p>
+                  <p className="text-xs text-gray-400 mt-1">{editBio.length}/160</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-1">Profile image URL</label>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">Profile image URL</label>
                   <div className="flex gap-2">
                     <input
                       type="url"
                       value={editImage}
                       onChange={(e) => setEditImage(e.target.value)}
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-bg-elevated border border-purple-500/15 text-white placeholder:text-gray-500 focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/30 outline-none"
+                      className="flex-1 px-4 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
                       placeholder="https://..."
                     />
                     <button
                       type="button"
                       onClick={handleLoadNfts}
                       disabled={nftLoading}
-                      className="px-4 py-2.5 rounded-xl bg-purple-500/15 border border-purple-500/25 text-purple-300 text-sm font-semibold hover:bg-purple-500/25 transition-colors disabled:opacity-50 shrink-0"
+                      className="px-4 py-2.5 rounded-lg bg-purple-50 border border-purple-200 text-purple-600 text-sm font-semibold hover:bg-purple-100 transition-colors disabled:opacity-50 shrink-0"
                     >
                       {nftLoading ? "…" : "Use NFT"}
                     </button>
                   </div>
                   {editImage && (
-                    <div className="mt-2 w-16 h-16 rounded-xl overflow-hidden bg-bg-elevated border border-purple-500/10">
+                    <div className="mt-2 w-16 h-16 rounded-lg overflow-hidden bg-gray-50 border border-gray-200">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={editImage} alt="Preview" className="w-full h-full object-cover" onError={() => setEditImage("")} />
                     </div>
@@ -418,14 +450,14 @@ export default function ProfilePage() {
                 </div>
                 {showNftPicker && nftList.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 mb-2">Pick an NFT from your wallet</p>
+                    <p className="text-xs font-semibold text-gray-600 mb-2">Pick an NFT from your wallet</p>
                     <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
                       {nftList.map((nft, i) => (
                         <button
                           key={i}
                           type="button"
                           onClick={() => { setEditImage(nft.image); setShowNftPicker(false); }}
-                          className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-purple-500/50 focus:border-purple-500 transition-colors"
+                          className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-purple-500 focus:border-purple-500 transition-colors"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
@@ -438,14 +470,14 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => !editSaving && setShowEdit(false)}
-                    className="flex-1 py-2.5 rounded-xl border border-purple-500/20 text-gray-300 font-semibold hover:bg-bg-elevated transition-colors"
+                    className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={editSaving}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 rounded-lg bg-purple-500 text-white font-semibold hover:bg-purple-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {editSaving ? (<><span className="material-icons animate-spin text-lg">progress_activity</span> Saving…</>) : "Save"}
                   </button>
@@ -457,14 +489,14 @@ export default function ProfilePage() {
 
         {/* Followers / Following modal */}
         {(showFollowers || showFollowing) && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setShowFollowers(false); setShowFollowing(false); }}>
-            <div className="bg-bg-card rounded-2xl border border-purple-500/15 w-full max-w-md mx-4 max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-purple-500/10">
-                <h3 className="font-display font-bold text-lg">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setShowFollowers(false); setShowFollowing(false); }}>
+            <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md mx-4 max-h-[70vh] flex flex-col shadow-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h3 className="font-display font-bold text-lg text-gray-900">
                   {showFollowers ? "Followers" : "Following"}
                   <span className="ml-2 text-sm font-normal text-gray-500">({showFollowers ? followerCount : followingCount})</span>
                 </h3>
-                <button type="button" onClick={() => { setShowFollowers(false); setShowFollowing(false); }} className="text-gray-500 hover:text-white transition-colors">
+                <button type="button" onClick={() => { setShowFollowers(false); setShowFollowing(false); }} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <span className="material-icons">close</span>
                 </button>
               </div>
@@ -479,17 +511,17 @@ export default function ProfilePage() {
                       <Link
                         key={u.id || u.username}
                         href={`/profile/${u.username}`}
-                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-bg-elevated transition-colors"
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={() => { setShowFollowers(false); setShowFollowing(false); }}
                       >
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold shrink-0">
                           {u.username?.[0]?.toUpperCase() || "?"}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold text-sm truncate">{u.username}</div>
+                          <div className="font-bold text-sm text-gray-900 truncate">{u.username}</div>
                           {u.bio && <p className="text-xs text-gray-500 truncate">{u.bio}</p>}
                         </div>
-                        <span className="material-icons text-gray-500 text-lg">chevron_right</span>
+                        <span className="material-icons text-gray-400 text-lg">chevron_right</span>
                       </Link>
                     ))}
                   </div>
@@ -499,66 +531,95 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <StatPill title="Wins" value={String(stats.wins)} />
-          <StatPill title="Losses" value={String(stats.losses)} />
-          <StatPill title="Win Rate" value={`${winRate}%`} />
-          <StatPill title="Best WPM" value={String(stats.bestWPM)} highlight />
+        {/* Performance Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <MetricCard icon="emoji_events" label="Total Wins" value={String(stats.wins)} iconColor="text-yellow-500" iconBg="bg-yellow-50" />
+          <MetricCard icon="pie_chart" label="Win Rate" value={`${winRate}%`} iconColor="text-purple-500" iconBg="bg-purple-50" />
+          <MetricCard icon="speed" label="Peak Speed" value={`${stats.bestWPM} WPM`} iconColor="text-blue-500" iconBg="bg-blue-50" />
+          <MetricCard icon="payments" label="Earnings" value={`${stats.totalEarnings >= 0 ? "+" : ""}${stats.totalEarnings.toFixed(2)} SOL`} iconColor="text-green-600" iconBg="bg-green-50" />
         </div>
 
-        {/* Match History */}
-        <div className="bg-bg-card rounded-2xl border border-purple-500/10 overflow-hidden">
-          <div className="px-6 py-4 border-b border-purple-500/10 flex items-center justify-between">
-            <h3 className="font-display font-bold">Match History</h3>
-            <Link className="text-sm font-bold text-purple-400 hover:underline" href="/leaderboard">
+        {/* Match Log */}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="font-display font-bold text-gray-900">Match Log</h3>
+            <Link className="text-sm font-bold text-purple-600 hover:underline" href="/leaderboard">
               View Leaderboard
             </Link>
           </div>
+
           {matchHistory.length === 0 ? (
             <div className="p-10 text-center text-gray-500">
               No matches yet. Start a duel from{" "}
-              <Link className="text-purple-400 underline" href="/game?mode=create">Game</Link>.
+              <Link className="text-purple-600 underline" href="/game?mode=create">Game</Link>.
             </div>
           ) : (
-            <div className="divide-y divide-purple-500/5">
-              {matchHistory.slice(0, 20).map((m) => {
-                const props = m.properties || {};
-                const isWinner = props.winnerId === meId;
-                const opp = isWinner ? props.loserUsername : props.winnerUsername;
-                const wpm = isWinner ? props.winnerWPM : props.loserWPM;
-                const acc = isWinner ? props.winnerAccuracy : props.loserAccuracy;
-                return (
-                  <div key={m.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isWinner ? "bg-purple-500/15 text-purple-400" : "bg-red-500/15 text-red-400"}`}>
-                        <span className="material-icons-outlined">{isWinner ? "emoji_events" : "close"}</span>
-                      </div>
-                      <div>
-                        <div className="font-bold">
-                          {isWinner ? "WIN" : "LOSS"} <span className="text-gray-500 font-normal">vs</span>{" "}
-                          {opp ? (
-                            opp === "KeyBot" || opp.startsWith("ai-") ? (
-                              <span className="text-gray-400">{opp}</span>
-                            ) : (
-                              <Link href={`/profile/${opp}`} className="hover:text-purple-400 transition-colors">{opp}</Link>
-                            )
-                          ) : "—"}
-                        </div>
-                        <div className="text-sm text-gray-500 font-mono">
-                          {wpm || "—"} WPM &bull; {acc || "—"}% &bull; {props.stakeAmount || "0"} SOL
-                        </div>
-                        {m.createdAt && (
-                          <div className="text-xs text-gray-600 mt-0.5">
-                            {new Date(m.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+                      <th className="text-left px-6 py-3 font-semibold">Result</th>
+                      <th className="text-left px-6 py-3 font-semibold">Opponent</th>
+                      <th className="text-center px-6 py-3 font-semibold">Speed / Acc</th>
+                      <th className="text-center px-6 py-3 font-semibold">Date</th>
+                      <th className="text-right px-6 py-3 font-semibold">Stake</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {visibleMatches.map((m) => {
+                      const props = m.properties || {};
+                      const isWinner = props.winnerId === meId;
+                      const opp = isWinner ? props.loserUsername : props.winnerUsername;
+                      const wpm = isWinner ? props.winnerWPM : props.loserWPM;
+                      const acc = isWinner ? props.winnerAccuracy : props.loserAccuracy;
+                      return (
+                        <tr key={m.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <span className={`material-icons text-lg ${isWinner ? "text-green-600" : "text-red-500"}`}>
+                                {isWinner ? "check_circle" : "cancel"}
+                              </span>
+                              <span className={`font-bold text-sm ${isWinner ? "text-green-600" : "text-red-500"}`}>
+                                {isWinner ? "WIN" : "LOSS"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {opp ? (
+                              opp === "KeyBot" || opp.startsWith("ai-") ? (
+                                <span className="text-gray-500">{opp}</span>
+                              ) : (
+                                <Link href={`/profile/${opp}`} className="text-gray-900 font-medium hover:text-purple-600 transition-colors">@{opp}</Link>
+                              )
+                            ) : "—"}
+                          </td>
+                          <td className="px-6 py-4 text-center font-mono text-gray-700">
+                            {wpm || "—"} WPM / {acc || "—"}%
+                          </td>
+                          <td className="px-6 py-4 text-center text-gray-500">
+                            {m.createdAt ? new Date(m.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                          </td>
+                          <td className="px-6 py-4 text-right font-mono text-gray-700">
+                            {props.stakeAmount && parseFloat(props.stakeAmount) > 0 ? `${props.stakeAmount} SOL` : "Practice"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {matchHistory.length > 10 && !showAllMatches && (
+                <div className="px-6 py-4 border-t border-gray-100 text-center">
+                  <button
+                    onClick={() => setShowAllMatches(true)}
+                    className="text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors"
+                  >
+                    Load More History ({matchHistory.length - 10} more)
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
@@ -566,11 +627,16 @@ export default function ProfilePage() {
   );
 }
 
-function StatPill({ title, value, highlight }: { title: string; value: string; highlight?: boolean }) {
+function MetricCard({ icon, label, value, iconColor, iconBg }: { icon: string; label: string; value: string; iconColor: string; iconBg: string }) {
   return (
-    <div className={highlight ? "bg-purple-500/10 border border-purple-500/25 rounded-2xl p-5 shadow-glow-sm" : "bg-bg-card border border-purple-500/10 rounded-2xl p-5"}>
-      <div className="text-xs uppercase tracking-widest text-gray-500 font-bold">{title}</div>
-      <div className="mt-2 text-3xl font-display font-bold">{value}</div>
+    <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center`}>
+          <span className={`material-icons ${iconColor}`}>{icon}</span>
+        </div>
+        <span className="text-xs uppercase tracking-widest text-gray-500 font-bold">{label}</span>
+      </div>
+      <div className="text-2xl font-display font-bold text-gray-900">{value}</div>
     </div>
   );
 }

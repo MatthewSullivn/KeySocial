@@ -20,7 +20,7 @@ export default function KeyDisplay(props: KeyDisplayProps) {
   if (!currentWord || !gameActive) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-gray-500 text-lg font-mono">
+        <div className="text-gray-400 text-lg font-mono">
           Press Start to begin...
         </div>
       </div>
@@ -51,7 +51,7 @@ export default function KeyDisplay(props: KeyDisplayProps) {
 
   return (
     <div className="flex flex-col items-center gap-4 py-6">
-      <div className="relative max-w-5xl w-full px-6 py-6 md:px-8 md:py-8 rounded-2xl bg-bg-elevated border border-purple-500/10">
+      <div className="relative max-w-5xl w-full px-6 py-6 md:px-8 md:py-8 rounded-xl bg-white border border-gray-200">
         <div className="text-2xl sm:text-3xl font-mono leading-relaxed tracking-wide flex flex-wrap gap-x-3 gap-y-2 select-none">
           {allWords.map((wordItem, i) => {
             const isCurrentWord = wordItem.status === 'current';
@@ -75,11 +75,11 @@ export default function KeyDisplay(props: KeyDisplayProps) {
                         key={charIndex}
                         className={cn(
                           "transition-colors duration-75 relative",
-                          state === "correct" && "text-purple-400",
-                          state === "incorrect" && "text-red-400 bg-red-400/10 rounded",
+                          state === "correct" && "text-purple-500",
+                          state === "incorrect" && "text-red-500 bg-red-50 rounded",
                           state === "untyped" && isCursorHere &&
-                            "text-white bg-purple-500/30 rounded px-0.5 -mx-0.5 border-b-2 border-purple-400 animate-pulse",
-                          state === "untyped" && !isCursorHere && "text-gray-500"
+                            "text-gray-900 bg-purple-100 rounded px-0.5 -mx-0.5 border-b-2 border-purple-500 animate-pulse",
+                          state === "untyped" && !isCursorHere && "text-gray-400"
                         )}
                       >
                         {char}
@@ -87,8 +87,8 @@ export default function KeyDisplay(props: KeyDisplayProps) {
                     );
                   })}
                   {awaitingSpace && (
-                    <span className="inline-flex items-center ml-1 text-purple-400 animate-pulse font-bold text-lg">
-                      ␣
+                    <span className="inline-flex items-center ml-1 text-purple-500 animate-pulse font-bold text-lg">
+                      _
                     </span>
                   )}
                 </span>
@@ -101,7 +101,7 @@ export default function KeyDisplay(props: KeyDisplayProps) {
                   key={i}
                   className={cn(
                     "transition-colors",
-                    wordItem.correct ? "text-purple-500/50" : "text-red-400/50 line-through decoration-red-400/40"
+                    wordItem.correct ? "text-purple-400/60" : "text-red-400/50 line-through decoration-red-400/40"
                   )}
                 >
                   {wordItem.word}
@@ -112,7 +112,7 @@ export default function KeyDisplay(props: KeyDisplayProps) {
             return (
               <span
                 key={i}
-                className={cn("text-gray-600", isUpcoming && "opacity-80")}
+                className={cn("text-gray-400", isUpcoming && "opacity-80")}
               >
                 {wordItem.word}
               </span>
@@ -122,8 +122,8 @@ export default function KeyDisplay(props: KeyDisplayProps) {
       </div>
 
       <p className="text-sm text-gray-500 font-mono mt-2">
-        Type each character — press SPACE to advance to next word
-        <span className="ml-3 text-xs text-gray-600">( Backspace to go back )</span>
+        Type each character - press SPACE to advance to next word
+        <span className="ml-3 text-xs text-gray-400">( Backspace to go back )</span>
       </p>
     </div>
   );

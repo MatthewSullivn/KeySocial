@@ -46,7 +46,7 @@ export const useUserStore = create<UserStore>((set) => ({
   isConnected: false,
 
   profile: null,
-  isProfileLoading: false,
+  isProfileLoading: true,
   hasProfile: false,
 
   stats: {

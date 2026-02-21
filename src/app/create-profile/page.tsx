@@ -55,17 +55,17 @@ export default function CreateProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary text-white flex flex-col">
+    <div className="min-h-screen bg-background text-text flex flex-col">
       <AppHeader />
 
       <main className="flex-grow flex flex-col items-center justify-center p-6 sm:p-12">
         {!connected ? (
           <div className="max-w-md w-full text-center">
-            <div className="w-20 h-20 bg-purple-500/15 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-purple-500/25">
-              <span className="material-icons text-4xl text-purple-400">person_add</span>
+            <div className="w-20 h-20 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-purple-200">
+              <span className="material-icons text-4xl text-purple-500">person_add</span>
             </div>
-            <h1 className="text-3xl font-extrabold mb-3">Create Your Profile</h1>
-            <p className="text-gray-400 mb-8 leading-relaxed">
+            <h1 className="text-3xl font-extrabold text-gray-900 mb-3">Create Your Profile</h1>
+            <p className="text-gray-500 mb-8 leading-relaxed">
               Connect your Solana wallet to get started on KeySocial.
             </p>
             <WalletMultiButton />
@@ -73,25 +73,25 @@ export default function CreateProfilePage() {
         ) : (
           <div className="w-full max-w-lg">
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-purple-500/15 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-purple-500/25">
-                <span className="material-icons text-4xl text-purple-400">person_add</span>
+              <div className="w-20 h-20 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-purple-200">
+                <span className="material-icons text-4xl text-purple-500">person_add</span>
               </div>
-              <h1 className="text-3xl font-extrabold mb-2">Create Your Profile</h1>
-              <p className="text-gray-400">
+              <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Create Your Profile</h1>
+              <p className="text-gray-500">
                 Choose your racer name and join the competition.
               </p>
             </div>
 
             <form
               onSubmit={handleCreateProfile}
-              className="bg-bg-card rounded-3xl border border-purple-500/10 p-8 space-y-6"
+              className="bg-white rounded-xl border border-gray-200 p-8 space-y-6"
             >
               <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Username <span className="text-pink-400">*</span>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Username <span className="text-pink-500">*</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 material-icons-outlined text-gray-500 text-xl">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 material-icons-outlined text-gray-400 text-xl">
                     alternate_email
                   </span>
                   <input
@@ -101,23 +101,23 @@ export default function CreateProfilePage() {
                     placeholder="your_racer_name"
                     maxLength={20}
                     className={cn(
-                      "w-full pl-12 pr-4 py-3.5 rounded-xl bg-bg-elevated border text-white placeholder:text-gray-600",
+                      "w-full pl-12 pr-4 py-3.5 rounded-lg bg-gray-50 border text-gray-900 placeholder:text-gray-400",
                       "focus:outline-none focus:ring-2 transition-all",
                       error && !username
-                        ? "border-red-500/40 focus:ring-red-500/20"
-                        : "border-purple-500/15 focus:ring-purple-500/20 focus:border-purple-500/40"
+                        ? "border-red-300 focus:ring-red-200"
+                        : "border-gray-200 focus:ring-purple-200 focus:border-purple-500"
                     )}
                     disabled={loading}
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1.5">
-                  3–20 characters. Letters, numbers, and underscores only.
+                  3-20 characters. Letters, numbers, and underscores only.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Bio <span className="text-gray-500 font-normal">(optional)</span>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Bio <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <textarea
                   value={bio}
@@ -125,7 +125,7 @@ export default function CreateProfilePage() {
                   placeholder="Tell the community about yourself..."
                   maxLength={160}
                   rows={3}
-                  className="w-full px-4 py-3.5 rounded-xl bg-bg-elevated border border-purple-500/15 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500/40 transition-all resize-none"
+                  className="w-full px-4 py-3.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-500 transition-all resize-none"
                   disabled={loading}
                 />
                 <p className="text-xs text-gray-500 mt-1.5">
@@ -133,16 +133,16 @@ export default function CreateProfilePage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                <span className="material-icons text-purple-400">account_balance_wallet</span>
+              <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-50 border border-purple-200">
+                <span className="material-icons text-purple-500">account_balance_wallet</span>
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-gray-400">Connected Wallet</div>
-                  <div className="text-sm font-mono truncate">{walletAddress}</div>
+                  <div className="text-xs font-semibold text-gray-500">Connected Wallet</div>
+                  <div className="text-sm font-mono text-gray-900 truncate">{walletAddress}</div>
                 </div>
               </div>
 
               {error && (
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
                   <span className="material-icons text-xl flex-shrink-0">error_outline</span>
                   <span>{error}</span>
                 </div>
@@ -152,10 +152,10 @@ export default function CreateProfilePage() {
                 type="submit"
                 disabled={loading || !username.trim()}
                 className={cn(
-                  "w-full py-4 rounded-xl font-extrabold text-lg transition-all flex items-center justify-center gap-2",
+                  "w-full py-4 rounded-lg font-extrabold text-lg transition-all flex items-center justify-center gap-2",
                   loading || !username.trim()
-                    ? "bg-bg-elevated text-gray-600 cursor-not-allowed"
-                    : "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-glow-md hover:-translate-y-0.5"
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-purple-500 text-white hover:bg-purple-600 hover:-translate-y-0.5"
                 )}
               >
                 {loading ? (

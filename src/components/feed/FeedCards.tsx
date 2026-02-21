@@ -23,16 +23,16 @@ function PostMenu({ onDelete }: { onDelete: () => void }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="text-gray-500 hover:text-white p-1 transition-colors"
+        className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
       >
         <span className="material-icons">more_horiz</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-bg-card border border-purple-500/15 rounded-xl shadow-lg overflow-hidden min-w-[140px]">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]">
           <button
             type="button"
             onClick={() => { setOpen(false); onDelete(); }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
           >
             <span className="material-icons text-base">delete</span>
             Delete Post
@@ -62,8 +62,8 @@ export const BOT_CHALLENGES: BotChallenge[] = [
     wpm: 30,
     message: "Hey there! I type at a chill 30 WPM. Perfect if you're warming up or just getting started. Think you can beat me? Let's go!",
     icon: "sports_esports",
-    accentColor: "text-purple-400",
-    bgColor: "bg-purple-500/10",
+    accentColor: "text-purple-500",
+    bgColor: "bg-purple-50",
   },
   {
     id: "bot-medium",
@@ -72,8 +72,8 @@ export const BOT_CHALLENGES: BotChallenge[] = [
     wpm: 60,
     message: "I type at a solid 60 WPM. Not too fast, not too slow. Ready to test your skills against a real challenge? Bring it on!",
     icon: "local_fire_department",
-    accentColor: "text-pink-400",
-    bgColor: "bg-pink-500/10",
+    accentColor: "text-pink-500",
+    bgColor: "bg-pink-50",
   },
   {
     id: "bot-hard",
@@ -82,8 +82,8 @@ export const BOT_CHALLENGES: BotChallenge[] = [
     wpm: 100,
     message: "100 WPM. No mercy. Only the fastest typists survive against me. Do you have what it takes, or will you crumble under pressure?",
     icon: "bolt",
-    accentColor: "text-purple-300",
-    bgColor: "bg-purple-400/10",
+    accentColor: "text-purple-600",
+    bgColor: "bg-purple-50",
   },
 ];
 
@@ -98,7 +98,7 @@ function formatTimeAgo(dateStr: string): string {
   return d.toLocaleDateString();
 }
 
-export function FeedCardFromContent({ content, profile }: { content: TapestryContent; profile: TapestryProfile | null }) {
+export function FeedCardFromContent({ content }: { content: TapestryContent; profile: TapestryProfile | null }) {
   const props = content.properties || {};
   const isMatch = props.type === "match_result";
 
@@ -106,16 +106,16 @@ export function FeedCardFromContent({ content, profile }: { content: TapestryCon
     return (
       <FeedCardRaceResult
         postId={content.id}
-        author={props.winnerUsername || "Racer"}
-        handle={`@${(props.winnerId || "").slice(0, 12)}`}
         timeAgo={content.createdAt ? formatTimeAgo(content.createdAt) : "—"}
-        raceId={`#${content.id?.slice(-4) || "—"}`}
-        content={content.content}
-        wpm={parseInt(props.winnerWPM || "0")}
-        accuracy={parseFloat(props.winnerAccuracy || "0")}
-        hash={content.id ? `${content.id.slice(0, 4)}...${content.id.slice(-4)}` : "—"}
         likes={content.socialCounts?.likes ?? 0}
         comments={content.socialCounts?.comments ?? 0}
+        winnerUsername={props.winnerUsername || "Unknown"}
+        loserUsername={props.loserUsername || "Unknown"}
+        winnerWPM={parseInt(props.winnerWPM || "0")}
+        loserWPM={parseInt(props.loserWPM || "0")}
+        winnerAccuracy={parseInt(props.winnerAccuracy || "0")}
+        loserAccuracy={parseInt(props.loserAccuracy || "0")}
+        stakeAmount={parseFloat(props.stakeAmount || "0")}
       />
     );
   }
@@ -134,38 +134,69 @@ export function FeedCardFromContent({ content, profile }: { content: TapestryCon
 }
 
 export function FeedCardRaceResult({
-  postId, author, timeAgo, raceId, content, wpm, accuracy, hash, likes, comments,
+  postId, timeAgo, likes, comments, hasLiked,
+  winnerUsername, loserUsername, winnerWPM, loserWPM, winnerAccuracy, loserAccuracy, stakeAmount,
 }: {
-  postId: string; author: string; handle: string; timeAgo: string; raceId: string;
-  content: string; wpm: number; accuracy: number; hash: string; likes: number; comments: number;
+  postId: string; timeAgo: string; likes: number; comments: number; hasLiked?: boolean;
+  winnerUsername: string; loserUsername: string; winnerWPM: number; loserWPM: number;
+  winnerAccuracy: number; loserAccuracy: number; stakeAmount: number;
 }) {
   return (
-    <div className="bg-bg-card border-l-4 border-l-pink-500 border border-purple-500/10 rounded-xl p-5">
-      <div className="flex gap-4">
-        <Link href={`/profile/${author}`} className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold shrink-0 hover:shadow-glow-sm transition-all">
-          {author[0]?.toUpperCase()}
-        </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex justify-between items-start">
-            <div><Link href={`/profile/${author}`} className="font-display font-bold text-lg hover:text-purple-400 transition-colors">{author}</Link><p className="text-xs text-gray-500">{timeAgo} • {raceId}</p></div>
-            <button type="button" className="text-gray-500 hover:text-white p-1"><span className="material-icons">more_horiz</span></button>
-          </div>
-          <p className="mt-3 text-gray-300 leading-relaxed">{content}</p>
-          <div className="mt-4 bg-bg-elevated border border-purple-500/10 rounded-xl p-4 relative">
-            <div className="absolute top-2 right-2 text-pink-400"><span className="material-icons text-3xl">emoji_events</span></div>
-            <h5 className="font-display font-bold text-xl">New Personal Best!</h5>
-            <div className="flex items-end gap-6 mt-4">
-              <div><span className="text-xs uppercase font-bold text-gray-500 block mb-1">Speed</span><span className="text-3xl font-black">{wpm} <span className="text-sm font-normal text-gray-500">WPM</span></span></div>
-              <div><span className="text-xs uppercase font-bold text-gray-500 block mb-1">Accuracy</span><span className="text-3xl font-black">{accuracy}<span className="text-sm font-normal text-gray-500">%</span></span></div>
+    <div className="bg-white border-l-4 border-l-pink-500 border border-gray-200 rounded-xl p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="material-icons text-pink-500 text-lg">emoji_events</span>
+        <span className="text-xs font-bold text-pink-500 uppercase tracking-widest">Race Result</span>
+        <span className="text-xs text-gray-400 ml-auto">{timeAgo}</span>
+      </div>
+
+      <div className="bg-[#0f1115] border border-gray-700 rounded-xl p-5">
+        {/* VS header */}
+        <div className="flex items-center justify-between gap-4 mb-5">
+          <Link href={`/profile/${winnerUsername}`} className="flex flex-col items-center gap-2 flex-1 group">
+            <div className="w-14 h-14 rounded-full bg-purple-500 flex items-center justify-center text-white text-xl font-black border-2 border-yellow-400 group-hover:ring-2 group-hover:ring-purple-400 transition-all">
+              {winnerUsername[0]?.toUpperCase()}
             </div>
-            <div className="mt-4 pt-3 border-t border-purple-500/10 flex justify-between items-center">
-              <span className="text-xs font-mono text-gray-500">Hash: {hash}</span>
-              <Link href="/game" className="text-xs font-bold text-purple-400 hover:underline flex items-center">View Race Replay <span className="material-icons text-sm ml-1">play_circle</span></Link>
+            <span className="font-bold text-sm text-white group-hover:text-purple-400 transition-colors truncate max-w-[100px]">{winnerUsername}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/15 text-yellow-400 font-bold">WINNER</span>
+          </Link>
+
+          <div className="text-2xl font-black text-gray-500">VS</div>
+
+          <Link href={`/profile/${loserUsername}`} className="flex flex-col items-center gap-2 flex-1 group">
+            <div className="w-14 h-14 rounded-full bg-gray-600 flex items-center justify-center text-white text-xl font-black group-hover:ring-2 group-hover:ring-gray-400 transition-all">
+              {loserUsername[0]?.toUpperCase()}
+            </div>
+            <span className="font-bold text-sm text-white group-hover:text-purple-400 transition-colors truncate max-w-[100px]">{loserUsername}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 font-bold">DEFEATED</span>
+          </Link>
+        </div>
+
+        {/* Stats comparison */}
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="bg-gray-800 rounded-lg p-3">
+            <span className="text-xs uppercase font-bold text-gray-400 block mb-1">WPM</span>
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-black text-purple-400">{winnerWPM}</span>
+              <span className="text-xs text-gray-600">vs</span>
+              <span className="text-lg font-black text-gray-400">{loserWPM}</span>
             </div>
           </div>
-          <SocialActions postId={postId} initialLikes={likes} initialComments={comments} showRepost showShare />
+          <div className="bg-gray-800 rounded-lg p-3">
+            <span className="text-xs uppercase font-bold text-gray-400 block mb-1">Accuracy</span>
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-black text-purple-400">{winnerAccuracy}%</span>
+              <span className="text-xs text-gray-600">vs</span>
+              <span className="text-lg font-black text-gray-400">{loserAccuracy}%</span>
+            </div>
+          </div>
+          <div className="bg-gray-800 rounded-lg p-3">
+            <span className="text-xs uppercase font-bold text-gray-400 block mb-1">Stake</span>
+            <span className="text-lg font-black text-white">{stakeAmount > 0 ? `${stakeAmount} SOL` : "Practice"}</span>
+          </div>
         </div>
       </div>
+
+      <SocialActions postId={postId} initialLikes={likes} initialComments={comments} initialHasLiked={hasLiked} showRepost showShare />
     </div>
   );
 }
@@ -175,38 +206,42 @@ export function FeedCardPost({
 }: {
   postId: string; author: string; handle: string; timeAgo: string; content: string;
   likes: number; comments: number; hasLiked?: boolean; onDelete?: () => void;
-  postType?: "normal" | "flex" | "challenge"; meta?: { wpm?: number; challengerUsername?: string };
+  postType?: "normal" | "flex" | "challenge" | "match_result"; meta?: { wpm?: number; challengerUsername?: string; roomCode?: string; challengedUsername?: string };
 }) {
   const borderColor =
     postType === "flex"
       ? "border-l-pink-500"
       : postType === "challenge"
-      ? "border-l-purple-400"
-      : "border-l-purple-500/40";
+      ? "border-l-purple-500"
+      : "border-l-gray-300";
 
   return (
-    <div className={`bg-bg-card border-l-4 ${borderColor} border border-purple-500/10 rounded-xl p-5`}>
+    <div className={`bg-white border-l-4 ${borderColor} border border-gray-200 rounded-xl p-5`}>
       <div className="flex gap-4">
-        <Link href={`/profile/${author}`} className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold shrink-0 hover:shadow-glow-sm transition-all">
+        <Link href={`/profile/${author}`} className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold shrink-0 hover:ring-2 hover:ring-purple-300 transition-all">
           {author[0]?.toUpperCase()}
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <div><Link href={`/profile/${author}`} className="font-display font-bold text-lg hover:text-purple-400 transition-colors">{author}</Link><p className="text-xs text-gray-500">{timeAgo}</p></div>
+            <div><Link href={`/profile/${author}`} className="font-display font-bold text-lg text-gray-900 hover:text-purple-600 transition-colors">{author}</Link><p className="text-xs text-gray-500">{timeAgo}</p></div>
             {onDelete ? (
               <PostMenu onDelete={onDelete} />
             ) : (
-              <button type="button" className="text-gray-500 hover:text-white p-1"><span className="material-icons">more_horiz</span></button>
+              <button type="button" className="text-gray-400 hover:text-gray-600 p-1"><span className="material-icons">more_horiz</span></button>
             )}
           </div>
-          <p className="mt-3 text-gray-300 leading-relaxed whitespace-pre-wrap">{content}</p>
+          <p className="mt-3 text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>
 
           {postType === "flex" && meta?.wpm != null && (
             <WpmFlexBlock wpm={meta.wpm} author={author} />
           )}
 
           {postType === "challenge" && (
-            <ChallengeBlock challengerUsername={meta?.challengerUsername || author} />
+            <ChallengeBlock
+              challengerUsername={meta?.challengerUsername || author}
+              roomCode={meta?.roomCode}
+              challengedUsername={meta?.challengedUsername}
+            />
           )}
 
           <SocialActions postId={postId} initialLikes={likes} initialComments={comments} initialHasLiked={hasLiked} showShare />
@@ -218,43 +253,43 @@ export function FeedCardPost({
 
 function WpmFlexBlock({ wpm, author }: { wpm: number; author: string }) {
   const tier = wpm >= 100 ? "Elite" : wpm >= 70 ? "Advanced" : wpm >= 40 ? "Intermediate" : "Beginner";
-  const tierColor = wpm >= 100 ? "text-purple-300" : wpm >= 70 ? "text-pink-400" : wpm >= 40 ? "text-pink-300" : "text-purple-400";
-  const tierBg = wpm >= 100 ? "bg-purple-400/15" : wpm >= 70 ? "bg-pink-500/15" : wpm >= 40 ? "bg-pink-400/15" : "bg-purple-500/15";
+  const tierColor = wpm >= 100 ? "text-purple-600" : wpm >= 70 ? "text-pink-500" : wpm >= 40 ? "text-pink-400" : "text-purple-500";
+  const tierBg = wpm >= 100 ? "bg-purple-50" : wpm >= 70 ? "bg-pink-50" : wpm >= 40 ? "bg-pink-50" : "bg-purple-50";
 
   return (
-    <div className="mt-4 rounded-xl border border-purple-500/15 overflow-hidden">
-      <div className="bg-bg-elevated p-5 relative">
+    <div className="mt-4 rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-gray-50 p-5 relative">
         <div className="absolute top-3 right-3 opacity-10">
-          <span className="material-icons text-6xl text-purple-400">speed</span>
+          <span className="material-icons text-6xl text-purple-500">speed</span>
         </div>
         <div className="flex items-center gap-2 mb-3">
-          <span className="material-icons text-purple-400 text-lg">emoji_events</span>
-          <span className="text-xs font-bold text-purple-400 uppercase tracking-widest">Personal Best</span>
+          <span className="material-icons text-purple-500 text-lg">emoji_events</span>
+          <span className="text-xs font-bold text-purple-500 uppercase tracking-widest">Personal Best</span>
           <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${tierBg} ${tierColor} ml-auto`}>{tier}</span>
         </div>
         <div className="flex items-end gap-6">
           <div>
-            <span className="text-5xl font-black text-white font-display">{wpm}</span>
+            <span className="text-5xl font-black text-gray-900 font-display">{wpm}</span>
             <span className="text-lg font-bold text-gray-500 ml-1">WPM</span>
           </div>
           <div className="flex-1">
-            <div className="h-2 bg-bg-card rounded-full overflow-hidden">
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all"
                 style={{ width: `${Math.min(100, (wpm / 150) * 100)}%` }}
               />
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-gray-600">0</span>
-              <span className="text-[10px] text-gray-600">150</span>
+              <span className="text-[10px] text-gray-400">0</span>
+              <span className="text-[10px] text-gray-400">150</span>
             </div>
           </div>
         </div>
-        <div className="mt-4 pt-3 border-t border-purple-500/10 flex justify-between items-center">
+        <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
           <span className="text-xs text-gray-500">
-            <span className="font-bold text-gray-300">@{author}</span> on KeySocial
+            <span className="font-bold text-gray-700">@{author}</span> on KeySocial
           </span>
-          <Link href="/game" className="text-xs font-bold text-purple-400 hover:underline flex items-center gap-1">
+          <Link href="/game" className="text-xs font-bold text-purple-600 hover:underline flex items-center gap-1">
             Beat this <span className="material-icons text-sm">arrow_forward</span>
           </Link>
         </div>
@@ -263,43 +298,60 @@ function WpmFlexBlock({ wpm, author }: { wpm: number; author: string }) {
   );
 }
 
-function ChallengeBlock({ challengerUsername }: { challengerUsername: string }) {
+function ChallengeBlock({ challengerUsername, roomCode, challengedUsername }: { challengerUsername: string; roomCode?: string; challengedUsername?: string }) {
+  const challengeLabel = challengedUsername
+    ? `wants to race @${challengedUsername}`
+    : "wants to race you in a 1v1 typing duel";
+
+  const acceptHref = roomCode
+    ? `/game?mode=join&room=${roomCode}`
+    : "/game?mode=create";
+
+  const acceptLabel = roomCode
+    ? "Accept Challenge (Join Room)"
+    : "Accept Challenge (Create Room)";
+
   return (
-    <div className="mt-4 rounded-xl border border-purple-500/15 overflow-hidden">
-      <div className="bg-bg-elevated p-5 relative">
+    <div className="mt-4 rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-gray-50 p-5 relative">
         <div className="absolute top-3 right-3 opacity-10">
-          <span className="material-icons text-6xl text-purple-400">swords</span>
+          <span className="material-icons text-6xl text-purple-500">swords</span>
         </div>
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-icons text-purple-400 text-lg">swords</span>
-          <span className="text-xs font-bold text-purple-400 uppercase tracking-widest">Open Challenge</span>
+          <span className="material-icons text-purple-500 text-lg">swords</span>
+          <span className="text-xs font-bold text-purple-500 uppercase tracking-widest">
+            {challengedUsername ? "Direct Challenge" : "Open Challenge"}
+          </span>
+          {roomCode && (
+            <span className="text-xs font-mono text-gray-500 ml-auto">Room: {roomCode}</span>
+          )}
         </div>
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center text-white text-xl font-black shrink-0">
+          <div className="w-14 h-14 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center text-purple-600 text-xl font-black shrink-0">
             {challengerUsername[0]?.toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h5 className="font-display font-bold text-white text-lg">@{challengerUsername}</h5>
-            <p className="text-sm text-gray-400">wants to race you in a 1v1 typing duel</p>
+            <h5 className="font-display font-bold text-gray-900 text-lg">@{challengerUsername}</h5>
+            <p className="text-sm text-gray-500">{challengeLabel}</p>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <div className="bg-bg-card rounded-lg p-2">
-            <span className="material-icons text-base text-accent-teal">timer</span>
+          <div className="bg-white rounded-lg p-2 border border-gray-100">
+            <span className="material-icons text-base text-teal-500">timer</span>
             <span className="block text-xs text-gray-500 mt-0.5">Real-time</span>
           </div>
-          <div className="bg-bg-card rounded-lg p-2">
-            <span className="material-icons text-base text-pink-400">group</span>
+          <div className="bg-white rounded-lg p-2 border border-gray-100">
+            <span className="material-icons text-base text-pink-500">group</span>
             <span className="block text-xs text-gray-500 mt-0.5">1v1</span>
           </div>
-          <div className="bg-bg-card rounded-lg p-2">
-            <span className="material-icons text-base text-purple-400">bolt</span>
+          <div className="bg-white rounded-lg p-2 border border-gray-100">
+            <span className="material-icons text-base text-purple-500">bolt</span>
             <span className="block text-xs text-gray-500 mt-0.5">Any Skill</span>
           </div>
         </div>
-        <Link href={`/game?mode=create`} className="mt-4 flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold rounded-xl hover:opacity-90 transition-all">
+        <Link href={acceptHref} className="mt-4 flex items-center justify-center gap-2 w-full py-3 bg-purple-500/10 border border-purple-500 text-purple-600 font-bold rounded-xl hover:bg-purple-500/20 transition-all">
           <span className="material-icons text-lg">play_arrow</span>
-          Accept Challenge (Create Room)
+          {acceptLabel}
         </Link>
       </div>
     </div>
@@ -310,15 +362,15 @@ export function FeedCardBotChallenge({ bot }: { bot: BotChallenge }) {
   const diffLabel = bot.difficulty === "easy" ? "Casual" : bot.difficulty === "medium" ? "Ranked" : "Elite";
 
   return (
-    <div className="bg-bg-card border-l-4 border-l-purple-500/40 border border-purple-500/10 rounded-xl p-5">
+    <div className="bg-white border-l-4 border-l-gray-300 border border-gray-200 rounded-xl p-5">
       <div className="flex gap-4">
-        <div className={`w-12 h-12 rounded-xl ${bot.bgColor} flex items-center justify-center shrink-0 border border-purple-500/15`}>
+        <div className={`w-12 h-12 rounded-full ${bot.bgColor} flex items-center justify-center shrink-0 border border-gray-200`}>
           <span className={`material-icons text-xl ${bot.accentColor}`}>{bot.icon}</span>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
             <div>
-              <h4 className="font-display font-bold text-lg flex items-center gap-2">
+              <h4 className="font-display font-bold text-lg text-gray-900 flex items-center gap-2">
                 {bot.botName}
                 <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${bot.bgColor} ${bot.accentColor}`}>{diffLabel}</span>
               </h4>
@@ -326,8 +378,8 @@ export function FeedCardBotChallenge({ bot }: { bot: BotChallenge }) {
             </div>
             <span className={`material-icons text-2xl ${bot.accentColor}`}>smart_toy</span>
           </div>
-          <p className="mt-3 text-gray-300 leading-relaxed">{bot.message}</p>
-          <Link href={`/game?mode=bot&difficulty=${bot.difficulty}`} className="mt-4 block bg-bg-elevated text-white rounded-xl p-4 hover:bg-bg-hover transition-colors group border border-purple-500/10">
+          <p className="mt-3 text-gray-600 leading-relaxed">{bot.message}</p>
+          <Link href={`/game?mode=bot&difficulty=${bot.difficulty}`} className="mt-4 block bg-gray-50 text-gray-900 rounded-xl p-4 hover:bg-gray-100 transition-colors group border border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`${bot.bgColor} p-2 rounded-lg`}>
@@ -335,10 +387,10 @@ export function FeedCardBotChallenge({ bot }: { bot: BotChallenge }) {
                 </div>
                 <div>
                   <h6 className="font-bold text-sm">Challenge {bot.botName}</h6>
-                  <p className="text-xs text-gray-400">{diffLabel} • {bot.wpm} WPM • Free Practice</p>
+                  <p className="text-xs text-gray-500">{diffLabel} • {bot.wpm} WPM • Free Practice</p>
                 </div>
               </div>
-              <span className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-4 py-2 rounded-lg font-bold text-sm">Race Now</span>
+              <span className="bg-purple-500 text-white px-4 py-2 rounded-lg font-bold text-sm">Race Now</span>
             </div>
           </Link>
           <SocialActions postId={bot.id} initialLikes={0} initialComments={0} />

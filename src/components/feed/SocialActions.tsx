@@ -135,11 +135,11 @@ export function SocialActions({
 
   return (
     <div className="mt-4">
-      <div className="flex items-center gap-6 text-gray-500">
+      <div className="flex items-center gap-6 text-gray-400">
         <button
           type="button"
           onClick={handleLike}
-          className={`flex items-center gap-2 transition-colors group ${liked ? "text-pink-400" : "hover:text-pink-400"}`}
+          className={`flex items-center gap-2 transition-colors group ${liked ? "text-pink-500" : "hover:text-pink-500"}`}
         >
           <span className="material-icons text-xl group-hover:scale-110 transition-transform">
             {liked ? "favorite" : "favorite_border"}
@@ -149,7 +149,7 @@ export function SocialActions({
         <button
           type="button"
           onClick={handleToggleComments}
-          className={`flex items-center gap-2 transition-colors group ${commentsOpen ? "text-purple-400" : "hover:text-purple-400"}`}
+          className={`flex items-center gap-2 transition-colors group ${commentsOpen ? "text-purple-500" : "hover:text-purple-500"}`}
         >
           <span className="material-icons text-xl group-hover:scale-110 transition-transform">
             {commentsOpen ? "chat_bubble" : "chat_bubble_outline"}
@@ -157,20 +157,20 @@ export function SocialActions({
           <span className="text-sm font-medium">{commentsOpen ? comments.length : initialComments}</span>
         </button>
         {showRepost && (
-          <button type="button" className="flex items-center gap-2 hover:text-accent-teal transition-colors group">
+          <button type="button" className="flex items-center gap-2 hover:text-teal-500 transition-colors group">
             <span className="material-icons text-xl group-hover:scale-110 transition-transform">repeat</span>
             <span className="text-sm font-medium">0</span>
           </button>
         )}
         {showShare && (
-          <button type="button" className="flex items-center gap-2 hover:text-white transition-colors ml-auto">
+          <button type="button" className="flex items-center gap-2 hover:text-gray-600 transition-colors ml-auto">
             <span className="material-icons text-xl">share</span>
           </button>
         )}
       </div>
 
       {commentsOpen && (
-        <div className="mt-4 pt-4 border-t border-purple-500/10 space-y-3">
+        <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
           {!commentsLoaded && (
             <p className="text-sm text-gray-500 text-center py-2">Loading comments...</p>
           )}
@@ -178,25 +178,25 @@ export function SocialActions({
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {comments.map((c, idx) => (
                 <div key={c.id || `comment-${idx}`} className="flex gap-3 group/comment">
-                  <Link href={`/profile/${c.author}`} className="w-7 h-7 rounded-lg bg-purple-500/15 flex items-center justify-center text-xs font-bold text-purple-300 shrink-0 hover:shadow-glow-sm transition-all">
+                  <Link href={`/profile/${c.author}`} className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-600 shrink-0 hover:ring-2 hover:ring-purple-300 transition-all">
                     {c.author[0]?.toUpperCase()}
                   </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <Link href={`/profile/${c.author}`} className="font-bold text-sm hover:text-purple-400 transition-colors">{c.author}</Link>
-                      <span className="text-xs text-gray-500">{formatTime(c.createdAt)}</span>
+                      <Link href={`/profile/${c.author}`} className="font-bold text-sm text-gray-900 hover:text-purple-600 transition-colors">{c.author}</Link>
+                      <span className="text-xs text-gray-400">{formatTime(c.createdAt)}</span>
                       {currentUsername && c.author === currentUsername && (
                         <button
                           type="button"
                           onClick={() => handleDeleteComment(c.id)}
-                          className="text-gray-500 hover:text-red-400 transition-colors ml-auto p-0.5 rounded hover:bg-red-500/10"
+                          className="text-gray-400 hover:text-red-500 transition-colors ml-auto p-0.5 rounded hover:bg-red-50"
                           title="Delete comment"
                         >
                           <span className="material-icons text-base">delete</span>
                         </button>
                       )}
                     </div>
-                    <p className="text-sm text-gray-300 mt-0.5">{c.text}</p>
+                    <p className="text-sm text-gray-600 mt-0.5">{c.text}</p>
                   </div>
                 </div>
               ))}
@@ -206,7 +206,7 @@ export function SocialActions({
             <p className="text-sm text-gray-500 text-center py-2">No comments yet. Be the first!</p>
           )}
           <div className="flex gap-2 items-center">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-xs font-bold text-white shrink-0">
+            <div className="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
               {(profile?.username || "?")[0]?.toUpperCase()}
             </div>
             <input
@@ -217,13 +217,13 @@ export function SocialActions({
               onKeyDown={(e) => { if (e.key === "Enter") handleSubmitComment(); }}
               placeholder={profile ? "Write a comment..." : "Connect wallet to comment"}
               disabled={!profile || submitting}
-              className="flex-1 bg-bg-elevated border border-purple-500/15 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/30 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               type="button"
               onClick={handleSubmitComment}
               disabled={!profile || !commentText.trim() || submitting}
-              className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-3 py-2 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-purple-500 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? "..." : "Post"}
             </button>

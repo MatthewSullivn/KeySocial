@@ -4,6 +4,7 @@ import type { TapestryProfile } from "@/lib/tapestry";
 import type { LocalPost } from "./FeedView";
 import {
   FeedCardPost,
+  FeedCardRaceResult,
   FeedCardBotChallenge,
   BOT_CHALLENGES,
 } from "./FeedCards";
@@ -29,22 +30,40 @@ export function FeedContent({ localPosts, profile, onDeletePost }: FeedContentPr
   const currentUsername = profile?.username;
   return (
     <div className="space-y-6">
-      {localPosts.map((post) => (
-        <FeedCardPost
-          key={post.id}
-          postId={post.id}
-          author={post.author}
-          handle={post.handle}
-          timeAgo={formatTimeAgo(post.createdAt)}
-          content={post.content}
-          likes={post.likes}
-          comments={post.comments}
-          hasLiked={post.hasLiked}
-          onDelete={onDeletePost && currentUsername && post.author === currentUsername ? () => onDeletePost(post.id) : undefined}
-          postType={post.postType}
-          meta={post.meta}
-        />
-      ))}
+      {localPosts.map((post) =>
+        post.postType === "match_result" && post.matchResult ? (
+          <FeedCardRaceResult
+            key={post.id}
+            postId={post.id}
+            timeAgo={formatTimeAgo(post.createdAt)}
+            likes={post.likes}
+            comments={post.comments}
+            hasLiked={post.hasLiked}
+            winnerUsername={post.matchResult.winnerUsername}
+            loserUsername={post.matchResult.loserUsername}
+            winnerWPM={post.matchResult.winnerWPM}
+            loserWPM={post.matchResult.loserWPM}
+            winnerAccuracy={post.matchResult.winnerAccuracy}
+            loserAccuracy={post.matchResult.loserAccuracy}
+            stakeAmount={post.matchResult.stakeAmount}
+          />
+        ) : (
+          <FeedCardPost
+            key={post.id}
+            postId={post.id}
+            author={post.author}
+            handle={post.handle}
+            timeAgo={formatTimeAgo(post.createdAt)}
+            content={post.content}
+            likes={post.likes}
+            comments={post.comments}
+            hasLiked={post.hasLiked}
+            onDelete={onDeletePost && currentUsername && post.author === currentUsername ? () => onDeletePost(post.id) : undefined}
+            postType={post.postType}
+            meta={post.meta}
+          />
+        )
+      )}
 
       {BOT_CHALLENGES.map((bot) => (
         <FeedCardBotChallenge key={bot.id} bot={bot} />
