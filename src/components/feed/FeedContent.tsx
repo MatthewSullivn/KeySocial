@@ -28,6 +28,15 @@ interface FeedContentProps {
 
 export function FeedContent({ localPosts, profile, onDeletePost }: FeedContentProps) {
   const currentUsername = profile?.username;
+  const currentId = profile?.id;
+
+  function isOwnPost(post: LocalPost): boolean {
+    if (!currentUsername) return false;
+    if (post.author === currentUsername) return true;
+    if (currentId && post.author === currentId) return true;
+    return false;
+  }
+
   return (
     <div className="space-y-6">
       {localPosts.map((post) =>
@@ -58,7 +67,7 @@ export function FeedContent({ localPosts, profile, onDeletePost }: FeedContentPr
             likes={post.likes}
             comments={post.comments}
             hasLiked={post.hasLiked}
-            onDelete={onDeletePost && currentUsername && post.author === currentUsername ? () => onDeletePost(post.id) : undefined}
+            onDelete={onDeletePost && isOwnPost(post) ? () => onDeletePost(post.id) : undefined}
             postType={post.postType}
             meta={post.meta}
           />

@@ -40,9 +40,9 @@ interface GameSetupProps {
 }
 
 const difficulties = [
-  { id: "easy", label: "Casual", icon: "sports_esports", desc: "Short words", color: "purple-500" },
+  { id: "easy", label: "Casual", icon: "mood", desc: "Short words", color: "purple-500" },
   { id: "medium", label: "Ranked", icon: "local_fire_department", desc: "Medium words", color: "pink-500" },
-  { id: "hard", label: "Elite", icon: "bolt", desc: "Long words", color: "purple-600" },
+  { id: "hard", label: "Elite", icon: "electric_bolt", desc: "Long words", color: "purple-600" },
   { id: "insane", label: "Insane", icon: "skull", desc: "Very long words", color: "red-500" },
 ];
 
@@ -453,7 +453,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
                           : "border-gray-200 hover:border-gray-300 text-gray-600"
                       )}
                     >
-                      <span className={cn("material-icons text-lg block", `text-${d.color}`)}>{d.icon}</span>
+                      <span className={cn("material-symbols-outlined text-base block", `text-${d.color}`)}>{d.icon}</span>
                       {d.label}
                     </button>
                   ))}
@@ -490,7 +490,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
                 disabled={!opponentName}
                 className="w-full py-3 rounded-lg bg-purple-500 text-white font-extrabold text-lg transition-all hover:bg-purple-600 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <span className="material-icons">swords</span>
+                <span className="material-symbols-outlined">swords</span>
                 {!opponentName
                   ? "Waiting for opponent..."
                   : stakeAmount > 0
@@ -628,7 +628,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
                   : "border-gray-200 hover:border-gray-300 bg-white"
               )}
             >
-              <span className={cn("material-icons text-2xl mb-2 block", `text-${d.color}`)}>{d.icon}</span>
+              <span className={cn("material-symbols-outlined text-xl mb-2 block", `text-${d.color}`)}>{d.icon}</span>
               <div className="font-bold text-sm text-gray-900">{d.label}</div>
               <div className="text-xs text-gray-500 mt-1">{d.desc}</div>
             </button>
@@ -647,7 +647,7 @@ export default function GameSetup({ onStart, onMultiplayerStart, initialDifficul
         onClick={handleBotStart}
         className="w-full py-4 rounded-lg bg-purple-500 text-white font-extrabold text-lg transition-all hover:bg-purple-600 hover:-translate-y-0.5 active:scale-[0.99] flex items-center justify-center gap-2"
       >
-        <span className="material-icons">swords</span>
+        <span className="material-symbols-outlined">swords</span>
         Start Practice Race
       </button>
     </div>

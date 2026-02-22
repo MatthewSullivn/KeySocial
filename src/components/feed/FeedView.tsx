@@ -95,7 +95,9 @@ function tapestryContentToLocalPost(tc: TapestryContent): LocalPost | null {
 function computeStatsFromContents(
   contents: TapestryContent[],
   profileId: string
-): { wpmAvg: number; wins: number; bestWpm: number } {
+): { wpmAvg: number; wins: number; bestWpm: number; losses: number; totalMatches: number } {
+  if (!profileId) return { wpmAvg: 0, wins: 0, bestWpm: 0, losses: 0, totalMatches: 0 };
+
   let totalWpm = 0;
   let matchCount = 0;
   let wins = 0;
@@ -106,13 +108,18 @@ function computeStatsFromContents(
   for (const tc of contents) {
     if (tc.properties?.type !== "match_result") continue;
     const pr = tc.properties;
+
+    // Only count matches the user participated in
+    const isWinner = pr.winnerId === profileId;
+    const isLoser = pr.loserId === profileId;
+    if (!isWinner && !isLoser) continue;
+
     const ts = tc.createdAt ? Math.floor(new Date(tc.createdAt).getTime() / 5000) : "";
     const key = `${pr.winnerId}-${pr.loserId}-${pr.winnerWPM}-${pr.loserWPM}-${ts}`;
     if (seen.has(key)) continue;
     seen.add(key);
 
     matchCount++;
-    const isWinner = pr.winnerId === profileId;
     const wpm = parseInt(isWinner ? pr.winnerWPM : pr.loserWPM, 10) || 0;
     totalWpm += wpm;
     if (isWinner) wins++;
@@ -123,6 +130,8 @@ function computeStatsFromContents(
     wpmAvg: matchCount > 0 ? Math.round(totalWpm / matchCount) : 0,
     wins,
     bestWpm,
+    losses: matchCount - wins,
+    totalMatches: matchCount,
   };
 }
 
@@ -135,8 +144,7 @@ export default function FeedView() {
   const [posting, setPosting] = useState(false);
   const [pendingType, setPendingType] = useState<PendingPostType>("normal");
   const [pendingMeta, setPendingMeta] = useState<PendingMeta>({});
-  const [stats, setStats] = useState({ wpmAvg: 0, wins: 0 });
-  const [bestWpm, setBestWpm] = useState(0);
+  const [stats, setStats] = useState({ wpmAvg: 0, wins: 0, bestWpm: 0, losses: 0, totalMatches: 0 });
 
   const followingSetRef = useRef<Set<string> | null>(null);
 
@@ -146,13 +154,18 @@ export default function FeedView() {
       const pid = profile?.id || profile?.username || "";
       const contents = await getContents(50, 0, pid || undefined);
       const computed = computeStatsFromContents(contents, pid);
-      setStats({ wpmAvg: computed.wpmAvg, wins: computed.wins });
-      setBestWpm(computed.bestWpm);
+      setStats(computed);
 
       // Convert posts (non-match-result content)
       const converted = contents
         .map(tapestryContentToLocalPost)
-        .filter((p): p is LocalPost => p !== null);
+        .filter((p): p is LocalPost => p !== null)
+        .filter((p) => {
+          if (p.postType !== "match_result" || !p.matchResult) return true;
+          const w = p.matchResult.winnerUsername.toLowerCase();
+          const l = p.matchResult.loserUsername.toLowerCase();
+          return w !== "keybot" && l !== "keybot";
+        });
       setPosts(converted);
     } catch (err) {
       console.error("Failed to load posts from API:", err);
@@ -247,15 +260,15 @@ export default function FeedView() {
 
   const handleFlexWPM = useCallback(() => {
     if (!profile) return;
-    if (bestWpm <= 0) {
+    if (stats.bestWpm <= 0) {
       toast.error("Play a game first to set your personal best!");
       return;
     }
     setPendingType("flex");
-    setPendingMeta({ wpm: bestWpm });
+    setPendingMeta({ wpm: stats.bestWpm });
     setPostText("Check out my typing speed. Can anyone beat this?");
     document.getElementById("compose")?.scrollIntoView({ behavior: "smooth" });
-  }, [profile, bestWpm]);
+  }, [profile, stats.bestWpm]);
 
   const handleCancelPending = useCallback(() => {
     clearPending();

@@ -7,7 +7,7 @@ import Link from "next/link";
 import AppHeader from "@/components/layout/AppHeader";
 
 type LeaderboardTab = "global" | "friends";
-type TimeFilter = "all" | "season" | "weekly";
+type TimeFilter = "all" | "weekly";
 
 interface LeaderboardEntry {
   username: string;
@@ -166,7 +166,7 @@ export default function LeaderboardPage() {
         {/* Filter Tabs */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <div className="flex items-center border border-gray-200 rounded-lg p-1 bg-white">
-            {(["all", "season", "weekly"] as const).map((f) => (
+            {(["all", "weekly"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setTimeFilter(f)}
@@ -176,7 +176,7 @@ export default function LeaderboardPage() {
                     : "text-gray-500 hover:text-gray-900"
                 }`}
               >
-                {f === "all" ? "All Time" : f === "season" ? "Season 1" : "Weekly"}
+                {f === "all" ? "All Time" : "Weekly"}
               </button>
             ))}
           </div>

@@ -22,7 +22,7 @@ interface FeedLayoutProps {
   pendingMeta: PendingMeta;
   posting: boolean;
   loading: boolean;
-  stats: { wpmAvg: number; wins: number };
+  stats: { wpmAvg: number; wins: number; bestWpm: number; losses: number; totalMatches: number };
   feedContent: ReactNode;
 }
 
@@ -104,7 +104,7 @@ export function FeedLayout(props: FeedLayoutProps) {
                   <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
                     <div className="flex gap-1 items-center">
                       <button type="button" onClick={onFlexWPM} disabled={!profile || pendingType === "flex"} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors text-xs font-medium disabled:opacity-40 ${pendingType === "flex" ? "text-pink-500" : "text-gray-500 hover:text-pink-500"}`} title="Flex your WPM"><span className="material-icons text-base">emoji_events</span><span className="hidden sm:inline">Flex WPM</span></button>
-                      <button type="button" onClick={onChallenge} disabled={!profile || pendingType === "challenge"} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors text-xs font-medium disabled:opacity-40 ${pendingType === "challenge" ? "text-purple-500" : "text-gray-500 hover:text-purple-500"}`} title="Challenge someone"><span className="material-icons text-base">swords</span><span className="hidden sm:inline">Challenge</span></button>
+                      <button type="button" onClick={onChallenge} disabled={!profile || pendingType === "challenge"} className={`inline-flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors text-xs font-medium disabled:opacity-40 w-fit ${pendingType === "challenge" ? "text-purple-500" : "text-gray-500 hover:text-purple-500"}`} title="Challenge someone"><span className="material-symbols-outlined text-base">swords</span><span className="hidden sm:inline">Challenge</span></button>
                     </div>
                     <button type="button" onClick={onPost} disabled={!profile || !postText.trim() || posting} className="bg-purple-500 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                       {posting ? "Posting…" : "Post"}
@@ -130,6 +130,94 @@ export function FeedLayout(props: FeedLayoutProps) {
           </div>
 
           <aside className="hidden lg:block lg:col-span-3 space-y-6">
+            {/* Quick Stats */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-1.5">
+                <span className="material-icons-outlined text-[18px] text-purple-500">bar_chart</span>
+                Quick Stats
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                  <span className="block text-xl font-display font-bold text-gray-900">{stats.totalMatches || "—"}</span>
+                  <span className="text-[10px] text-gray-500 uppercase font-bold">Matches</span>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                  <span className="block text-xl font-display font-bold text-gray-900">
+                    {stats.totalMatches > 0 ? `${Math.round((stats.wins / stats.totalMatches) * 100)}%` : "—"}
+                  </span>
+                  <span className="text-[10px] text-gray-500 uppercase font-bold">Win Rate</span>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                  <span className="block text-xl font-display font-bold text-gray-900">{stats.wpmAvg || "—"}</span>
+                  <span className="text-[10px] text-gray-500 uppercase font-bold">Avg WPM</span>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                  <span className="block text-xl font-display font-bold text-gray-900">{stats.bestWpm || "—"}</span>
+                  <span className="text-[10px] text-gray-500 uppercase font-bold">Best WPM</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-1.5">
+                <span className="material-icons-outlined text-[18px] text-purple-500">insights</span>
+                Performance
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-500 font-medium">Win Rate</span>
+                    <span className="font-bold text-gray-900">
+                      {stats.totalMatches > 0 ? `${Math.round((stats.wins / stats.totalMatches) * 100)}%` : "0%"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-purple-500 h-full rounded-full transition-all"
+                      style={{ width: `${stats.totalMatches > 0 ? Math.round((stats.wins / stats.totalMatches) * 100) : 0}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-500 font-medium">Speed</span>
+                    <span className="font-bold text-gray-900">{stats.bestWpm} / 150 WPM</span>
+                  </div>
+                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-green-500 h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, Math.round((stats.bestWpm / 150) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 font-medium">Rank</span>
+                    <RankBadge wins={stats.wins} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-2">
+              <Link
+                href={profile ? "/game" : "/create-profile"}
+                className="flex items-center gap-2 w-full bg-purple-500 text-white font-bold py-2.5 rounded-lg text-sm justify-center hover:bg-purple-600 transition-colors"
+              >
+                <span className="material-icons text-[18px]">sports_esports</span>
+                Start Racing
+              </Link>
+              <Link
+                href="/leaderboard"
+                className="flex items-center gap-2 w-full bg-white text-gray-700 font-bold py-2.5 rounded-lg text-sm justify-center border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <span className="material-icons-outlined text-[18px]">leaderboard</span>
+                View Leaderboard
+              </Link>
+            </div>
+
             <div className="text-xs text-gray-400 px-2">
               <span>&copy; 2026 KeySocial</span>
             </div>
@@ -174,7 +262,7 @@ function ComposerChallengePreview({ username, onCancel }: { username: string; on
       </button>
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-          <span className="material-icons text-purple-500">swords</span>
+          <span className="material-symbols-outlined text-purple-500">swords</span>
         </div>
         <div>
           <div className="text-xs font-bold text-purple-500 uppercase">Challenge Card</div>
@@ -182,5 +270,27 @@ function ComposerChallengePreview({ username, onCancel }: { username: string; on
         </div>
       </div>
     </div>
+  );
+}
+
+function RankBadge({ wins }: { wins: number }) {
+  const { label, color, bg } =
+    wins >= 100
+      ? { label: "Legend", color: "text-red-700", bg: "bg-red-100 border-red-200" }
+      : wins >= 50
+      ? { label: "Diamond", color: "text-blue-700", bg: "bg-blue-100 border-blue-200" }
+      : wins >= 25
+      ? { label: "Platinum", color: "text-purple-700", bg: "bg-purple-100 border-purple-200" }
+      : wins >= 10
+      ? { label: "Gold", color: "text-yellow-700", bg: "bg-yellow-100 border-yellow-200" }
+      : wins >= 5
+      ? { label: "Silver", color: "text-gray-600", bg: "bg-gray-100 border-gray-300" }
+      : { label: "Bronze", color: "text-orange-700", bg: "bg-orange-100 border-orange-200" };
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold border ${bg} ${color}`}>
+      <span className="material-icons text-[14px]">military_tech</span>
+      {label}
+    </span>
   );
 }

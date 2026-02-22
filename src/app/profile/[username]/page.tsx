@@ -369,13 +369,13 @@ export default function ProfilePage() {
                     <button
                       onClick={handleChallenge}
                       disabled={challengeLoading || !myProfile}
-                      className="px-5 py-2 rounded-lg font-bold text-sm bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      className="px-3 py-2 rounded-lg font-bold text-sm bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 w-fit"
                     >
                       {challengeLoading ? (
-                        <><span className="material-icons animate-spin text-sm">progress_activity</span> Sending…</>
+                        <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Sending…</>
                       ) : (
                         <>
-                          <span className="material-icons text-lg">swords</span>
+                          <span className="material-symbols-outlined text-lg">swords</span>
                           Challenge
                         </>
                       )}

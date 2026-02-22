@@ -315,10 +315,10 @@ function ChallengeBlock({ challengerUsername, roomCode, challengedUsername }: { 
     <div className="mt-4 rounded-xl border border-gray-200 overflow-hidden">
       <div className="bg-gray-50 p-5 relative">
         <div className="absolute top-3 right-3 opacity-10">
-          <span className="material-icons text-6xl text-purple-500">swords</span>
+          <span className="material-symbols-outlined text-6xl text-purple-500">swords</span>
         </div>
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-icons text-purple-500 text-lg">swords</span>
+          <span className="material-symbols-outlined text-purple-500 text-lg">swords</span>
           <span className="text-xs font-bold text-purple-500 uppercase tracking-widest">
             {challengedUsername ? "Direct Challenge" : "Open Challenge"}
           </span>
@@ -383,7 +383,7 @@ export function FeedCardBotChallenge({ bot }: { bot: BotChallenge }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`${bot.bgColor} p-2 rounded-lg`}>
-                  <span className={`material-icons ${bot.accentColor}`}>swords</span>
+                  <span className={`material-symbols-outlined ${bot.accentColor}`}>swords</span>
                 </div>
                 <div>
                   <h6 className="font-bold text-sm">Challenge {bot.botName}</h6>

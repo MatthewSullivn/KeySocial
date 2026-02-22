@@ -19,8 +19,8 @@ type NavItem = { href: string; label: string; icon: string };
 
 const NAV: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
-  { href: "/feed", label: "Feed", icon: "forum" },
   { href: "/game", label: "Race", icon: "sports_esports" },
+  { href: "/feed", label: "Feed", icon: "forum" },
   { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
 ];
 
@@ -35,6 +35,8 @@ export default function AppHeader({ className }: { className?: string }) {
 
   const isProfileActive =
     pathname.startsWith("/profile") || pathname.startsWith("/create-profile");
+
+  const logoHref = "/";
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -51,7 +53,7 @@ export default function AppHeader({ className }: { className?: string }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2.5">
+            <Link href={logoHref} className="flex items-center gap-2.5">
               <div className="w-9 h-9 bg-purple-500 rounded-lg flex items-center justify-center text-white font-extrabold text-sm">
                 K
               </div>

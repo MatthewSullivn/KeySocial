@@ -517,10 +517,9 @@ export async function getComments(
 // ========================
 
 export async function deleteContent(contentId: string): Promise<void> {
-  const res = await tapestryFetch("/contents/delete", {
-    method: "POST",
+  const res = await tapestryFetch(`/contents/${contentId}`, {
+    method: "DELETE",
     body: JSON.stringify({
-      id: contentId,
       blockchain: "SOLANA",
       execution: "FAST_UNCONFIRMED",
     }),
