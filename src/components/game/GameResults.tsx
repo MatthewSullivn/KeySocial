@@ -2,6 +2,7 @@
 
 import type { MatchResult, PlayerState } from "@/lib/game-engine";
 import Link from "next/link";
+import { useNetwork } from "@/providers/NetworkProvider";
 import { cn } from "@/lib/utils";
 
 interface GameResultsProps {
@@ -9,6 +10,7 @@ interface GameResultsProps {
   player: PlayerState;
   opponent: PlayerState;
   isPlayerWinner: boolean;
+  payoutTxSignature?: string | null;
   onPlayAgain: () => void;
   onShare: () => void;
 }
@@ -18,9 +20,12 @@ export default function GameResults({
   player,
   opponent,
   isPlayerWinner,
+  payoutTxSignature,
   onPlayAgain,
   onShare,
 }: GameResultsProps) {
+  const { solscanSuffix, networkLabel, network } = useNetwork();
+  const isMainnet = network === "mainnet-beta";
   return (
     <div className="max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Result Banner */}
@@ -97,14 +102,35 @@ export default function GameResults({
           <div className="text-sm text-gray-500 mb-1">
             {isPlayerWinner ? "You won" : "You lost"}
           </div>
-          <div
-            className={cn(
-              "text-2xl font-black",
-              isPlayerWinner ? "text-green-600" : "text-red-500"
-            )}
-          >
-            {isPlayerWinner ? "+" : "-"}{result.stakeAmount} SOL
+          <div className="flex items-center justify-center gap-2">
+            <span
+              className={cn(
+                "text-2xl font-black",
+                isPlayerWinner ? "text-green-600" : "text-red-500"
+              )}
+            >
+              {isPlayerWinner ? "+" : "-"}{result.stakeAmount} SOL
+            </span>
+            <span className={cn(
+              "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+              isMainnet
+                ? "bg-green-100 text-green-700"
+                : "bg-yellow-100 text-yellow-700"
+            )}>
+              {networkLabel}
+            </span>
           </div>
+          {payoutTxSignature && (
+            <a
+              href={`https://solscan.io/tx/${payoutTxSignature}${solscanSuffix}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 mt-2 text-xs text-purple-600 hover:text-purple-700 font-medium transition-colors"
+            >
+              <span className="material-icons text-sm">open_in_new</span>
+              View Payout TX on Solscan
+            </a>
+          )}
         </div>
       )}
 

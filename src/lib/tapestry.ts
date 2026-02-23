@@ -311,6 +311,7 @@ export async function recordMatchResult(
     stakeAmount: number;
     duration: number;
     matchType: string;
+    payoutTxSignature?: string;
   }
 ): Promise<TapestryContent> {
   const content = `${matchData.winnerUsername} defeated ${matchData.loserUsername} in a KeySocial race! WPM: ${matchData.winnerWPM} vs ${matchData.loserWPM}`;
@@ -329,6 +330,10 @@ export async function recordMatchResult(
     { key: "duration", value: String(matchData.duration) },
     { key: "matchType", value: matchData.matchType },
   ];
+
+  if (matchData.payoutTxSignature) {
+    customProperties.push({ key: "payoutTxSignature", value: matchData.payoutTxSignature });
+  }
 
   return createContent(profileId, content, "text", customProperties);
 }

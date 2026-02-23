@@ -13,11 +13,13 @@ function formatTimeAgo(dateStr: string): string {
   const d = new Date(dateStr);
   const now = Date.now();
   const ms = now - d.getTime();
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   if (ms < 60000) return "just now";
   if (ms < 3600000) return `${Math.floor(ms / 60000)} mins ago`;
-  if (ms < 86400000) return `${Math.floor(ms / 3600000)} hours ago`;
-  if (ms < 604800000) return `${Math.floor(ms / 86400000)} days ago`;
-  return d.toLocaleDateString();
+  if (ms < 86400000) return `${Math.floor(ms / 3600000)} hours ago · ${time}`;
+  const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (ms < 604800000) return `${Math.floor(ms / 86400000)} days ago · ${date}, ${time}`;
+  return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${time}`;
 }
 
 interface FeedContentProps {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { NetworkProvider } from "@/providers/NetworkProvider";
 import WalletProvider from "@/providers/WalletProvider";
 import ProfileProvider from "@/providers/ProfileProvider";
 import { Toaster } from "sonner";
@@ -40,22 +41,24 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background text-text font-body antialiased">
-        <WalletProvider>
-          <ProfileProvider>
-            {children}
-            <Toaster
-              theme="light"
-              position="bottom-right"
-              toastOptions={{
-                style: {
-                  background: "#FFFFFF",
-                  border: "1px solid #E5E7EB",
-                  color: "#111827",
-                },
-              }}
-            />
-          </ProfileProvider>
-        </WalletProvider>
+        <NetworkProvider>
+          <WalletProvider>
+            <ProfileProvider>
+              {children}
+              <Toaster
+                theme="light"
+                position="bottom-right"
+                toastOptions={{
+                  style: {
+                    background: "#FFFFFF",
+                    border: "1px solid #E5E7EB",
+                    color: "#111827",
+                  },
+                }}
+              />
+            </ProfileProvider>
+          </WalletProvider>
+        </NetworkProvider>
       </body>
     </html>
   );

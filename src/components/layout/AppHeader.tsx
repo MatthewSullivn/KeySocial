@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useUserStore } from "@/store/user-store";
+import { useNetwork } from "@/providers/NetworkProvider";
 import { cn } from "@/lib/utils";
 
 const WalletMultiButton = dynamic(
@@ -27,7 +28,10 @@ const NAV: NavItem[] = [
 export default function AppHeader({ className }: { className?: string }) {
   const pathname = usePathname();
   const { profile } = useUserStore();
+  const { network, networkLabel } = useNetwork();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const isMainnet = network === "mainnet-beta";
 
   const profileHref = useMemo(() => {
     return profile ? `/profile/${profile.username || profile.id}` : "/create-profile";
@@ -82,9 +86,14 @@ export default function AppHeader({ className }: { className?: string }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-xs font-medium text-green-700">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              Solana Mainnet
+            <div className={cn(
+              "hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
+              isMainnet
+                ? "bg-green-50 border border-green-200 text-green-700"
+                : "bg-yellow-50 border border-yellow-200 text-yellow-700"
+            )}>
+              <span className={cn("w-2 h-2 rounded-full", isMainnet ? "bg-green-500" : "bg-yellow-500")} />
+              Solana {networkLabel}
             </div>
 
             <Link

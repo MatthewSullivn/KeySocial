@@ -18,6 +18,8 @@ import {
 } from "@/lib/multiplayer";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { useNetwork } from "@/providers/NetworkProvider";
 import AppHeader from "@/components/layout/AppHeader";
 
 export default function GamePage() {
@@ -58,9 +60,12 @@ function GamePageInner() {
   } = useGameStore();
 
   const { profile } = useUserStore();
+  const { solscanSuffix, networkLabel, network } = useNetwork();
+  const isMainnet = network === "mainnet-beta";
 
   const [lastResult, setLastResult] = useState<"correct" | "wrong" | null>(null);
   const [showSetup, setShowSetup] = useState(true);
+  const [payoutTxSig, setPayoutTxSig] = useState<string | null>(null);
 
   const didResetOnMount = useRef(false);
   useEffect(() => {
@@ -213,6 +218,45 @@ function GamePageInner() {
     }
   }, [gameState, matchResult]);
 
+  async function claimPayout(): Promise<string | null> {
+    const walletAddr = useUserStore.getState().walletAddress;
+    if (!walletAddr) return null;
+
+    try {
+      const res = await fetch("/api/escrow/payout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          winnerWallet: walletAddr,
+          stakeAmount,
+          matchContentId: "pending",
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const winnings = (stakeAmount * 2 * 0.95).toFixed(3);
+        const sig = data.txSignature || null;
+        setPayoutTxSig(sig);
+        toast.success(`Winnings deposited! +${winnings} SOL`, {
+          description: sig ? `TX: ${sig.slice(0, 16)}...` : undefined,
+          action: sig ? {
+            label: "View TX",
+            onClick: () => window.open(`https://solscan.io/tx/${sig}${solscanSuffix}`, "_blank"),
+          } : undefined,
+        });
+        return sig;
+      } else {
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        toast.error("Failed to claim winnings: " + (err.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Payout claim error:", err);
+      toast.error("Failed to claim winnings");
+    }
+    return null;
+  }
+
   async function recordMatchOnChain() {
     if (!matchResult || !profile) return;
     if (matchMode === "multiplayer" && matchResult.winnerId !== player.id) {
@@ -223,51 +267,22 @@ function GamePageInner() {
     }
 
     try {
-      const result = await recordMatchResult(profile.id || profile.username, {
+      let payoutTxSignature: string | undefined;
+      if (stakeAmount > 0) {
+        const sig = await claimPayout();
+        if (sig) payoutTxSignature = sig;
+      }
+
+      await recordMatchResult(profile.id || profile.username, {
         ...matchResult,
         matchType: stakeAmount > 0 ? "ranked" : "practice",
         stakeAmount,
+        payoutTxSignature,
       });
       toast.success("Match result recorded onchain!");
       toast("Result posted to your feed!", { icon: "📣" });
-
-      if (stakeAmount > 0 && result?.id) {
-        await claimPayout(result.id);
-      }
     } catch (err) {
       console.error("Failed to record match:", err);
-    }
-  }
-
-  async function claimPayout(matchContentId: string) {
-    if (!profile) return;
-    const walletAddr = useUserStore.getState().walletAddress;
-    if (!walletAddr) return;
-
-    try {
-      const res = await fetch("/api/escrow/payout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          winnerWallet: walletAddr,
-          stakeAmount,
-          matchContentId,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const winnings = (stakeAmount * 2 * 0.95).toFixed(3);
-        toast.success(`Winnings deposited! +${winnings} SOL`, {
-          description: `TX: ${data.txSignature?.slice(0, 12)}...`,
-        });
-      } else {
-        const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        toast.error("Failed to claim winnings: " + (err.error || "Unknown error"));
-      }
-    } catch (err) {
-      console.error("Payout claim error:", err);
-      toast.error("Failed to claim winnings");
     }
   }
 
@@ -328,6 +343,7 @@ function GamePageInner() {
     resetGame();
     setShowSetup(true);
     setLastResult(null);
+    setPayoutTxSig(null);
   }
 
   function handleShare() {
@@ -377,6 +393,7 @@ function GamePageInner() {
               player={player}
               opponent={opponent}
               isPlayerWinner={matchResult.winnerId === player.id}
+              payoutTxSignature={payoutTxSig}
               onPlayAgain={handlePlayAgain}
               onShare={handleShare}
             />
@@ -473,8 +490,8 @@ function GamePageInner() {
           />
           <div className="mt-4 flex justify-between items-center text-xs text-gray-500 font-mono">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              Server: US-East (12ms)
+              <span className={cn("w-2 h-2 rounded-full", isMainnet ? "bg-green-500" : "bg-yellow-500")} />
+              {networkLabel}
             </div>
             <div className="flex items-center gap-4">
               <span>Words: {player.streak}/{config.trackLength}</span>

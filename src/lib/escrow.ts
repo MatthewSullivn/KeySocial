@@ -17,15 +17,16 @@ export function getEscrowPublicKey(): PublicKey {
   return new PublicKey(key);
 }
 
-export function getConnection(): Connection {
-  return new Connection(RPC_URL, "confirmed");
+export function getConnection(rpcUrl?: string): Connection {
+  return new Connection(rpcUrl || RPC_URL, "confirmed");
 }
 
 export async function createDepositTransaction(
   fromPubkey: PublicKey,
-  amountSOL: number
+  amountSOL: number,
+  rpcUrl?: string
 ): Promise<Transaction> {
-  const connection = getConnection();
+  const connection = getConnection(rpcUrl);
   const escrowPubkey = getEscrowPublicKey();
   const lamports = Math.round(amountSOL * LAMPORTS_PER_SOL);
 

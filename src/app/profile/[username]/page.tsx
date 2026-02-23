@@ -19,8 +19,9 @@ import {
   type TapestryContent,
 } from "@/lib/tapestry";
 import { generateRoomCode } from "@/lib/multiplayer";
-import { shortenAddress } from "@/lib/utils";
+import { shortenAddress, cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useNetwork } from "@/providers/NetworkProvider";
 import AppHeader from "@/components/layout/AppHeader";
 
 export default function ProfilePage() {
@@ -31,6 +32,8 @@ export default function ProfilePage() {
   const { profile: myProfile } = useUserStore();
   const connectedWallet = publicKey?.toBase58() || "";
   const [challengeLoading, setChallengeLoading] = useState(false);
+  const { solscanSuffix, networkLabel, network } = useNetwork();
+  const isMainnet = network === "mainnet-beta";
 
   const [profile, setProfile] = useState<TapestryProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,13 +47,9 @@ export default function ProfilePage() {
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [showNftPicker, setShowNftPicker] = useState(false);
   const [editUsername, setEditUsername] = useState("");
   const [editBio, setEditBio] = useState("");
-  const [editImage, setEditImage] = useState("");
   const [editSaving, setEditSaving] = useState(false);
-  const [nftList, setNftList] = useState<{ image: string; name: string }[]>([]);
-  const [nftLoading, setNftLoading] = useState(false);
   const [showAllMatches, setShowAllMatches] = useState(false);
   const [stats, setStats] = useState({
     wins: 0,
@@ -176,38 +175,7 @@ export default function ProfilePage() {
     if (!profile) return;
     setEditUsername(profile.username || "");
     setEditBio(profile.bio || "");
-    setEditImage(profile.image || "");
-    setShowNftPicker(false);
-    setNftList([]);
     setShowEdit(true);
-  }
-
-  async function handleLoadNfts() {
-    const wallet = connectedWallet || profile?.walletAddress || myProfile?.walletAddress;
-    if (!wallet) {
-      toast.error("Connect your wallet first to load NFTs");
-      return;
-    }
-    setNftLoading(true);
-    setNftList([]);
-    try {
-      const res = await fetch(`/api/nfts?wallet=${encodeURIComponent(wallet)}`);
-      const data = await res.json();
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-      if (data.nfts?.length) {
-        setNftList(data.nfts);
-        setShowNftPicker(true);
-      } else {
-        toast.info(data.message || "No NFTs found. Add HELIUS_API_KEY to .env and restart the dev server.");
-      }
-    } catch {
-      toast.error("Failed to load NFTs");
-    } finally {
-      setNftLoading(false);
-    }
   }
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -223,7 +191,6 @@ export default function ProfilePage() {
       const updated = await updateProfile(pid, {
         username: editUsername.trim(),
         bio: editBio.trim() || undefined,
-        image: editImage.trim() || undefined,
       });
       setProfile(updated);
       useUserStore.getState().setProfile(updated);
@@ -287,13 +254,8 @@ export default function ProfilePage() {
             <div className="flex-1 p-6 md:p-8">
               <div className="flex flex-col md:flex-row gap-6 items-start">
                 <div className="flex-shrink-0">
-                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-purple-500 overflow-hidden flex items-center justify-center text-white text-4xl font-black">
-                    {profile.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={profile.image} alt={profile.username} className="w-full h-full object-cover" />
-                    ) : (
-                      profile.username?.[0]?.toUpperCase() || "?"
-                    )}
+                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-purple-500 flex items-center justify-center text-white text-4xl font-black">
+                    {profile.username?.[0]?.toUpperCase() || "?"}
                   </div>
                 </div>
 
@@ -307,9 +269,7 @@ export default function ProfilePage() {
                   <p className="text-gray-500 text-sm flex items-center gap-2 flex-wrap">
                     Professional Racer
                     <span className="w-1 h-1 rounded-full bg-gray-400"></span>
-                    ID: #{(profile.id || profile.username).slice(0, 6).toUpperCase()}
-                    <span className="w-1 h-1 rounded-full bg-gray-400"></span>
-                    Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                    Joined {profile.createdAt ? `${new Date(profile.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${new Date(profile.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : "—"}
                   </p>
 
                   {profile.bio && (
@@ -422,50 +382,6 @@ export default function ProfilePage() {
                   />
                   <p className="text-xs text-gray-400 mt-1">{editBio.length}/160</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1">Profile image URL</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={editImage}
-                      onChange={(e) => setEditImage(e.target.value)}
-                      className="flex-1 px-4 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
-                      placeholder="https://..."
-                    />
-                    <button
-                      type="button"
-                      onClick={handleLoadNfts}
-                      disabled={nftLoading}
-                      className="px-4 py-2.5 rounded-lg bg-purple-50 border border-purple-200 text-purple-600 text-sm font-semibold hover:bg-purple-100 transition-colors disabled:opacity-50 shrink-0"
-                    >
-                      {nftLoading ? "…" : "Use NFT"}
-                    </button>
-                  </div>
-                  {editImage && (
-                    <div className="mt-2 w-16 h-16 rounded-lg overflow-hidden bg-gray-50 border border-gray-200">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={editImage} alt="Preview" className="w-full h-full object-cover" onError={() => setEditImage("")} />
-                    </div>
-                  )}
-                </div>
-                {showNftPicker && nftList.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-2">Pick an NFT from your wallet</p>
-                    <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
-                      {nftList.map((nft, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => { setEditImage(nft.image); setShowNftPicker(false); }}
-                          className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-purple-500 focus:border-purple-500 transition-colors"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
@@ -564,6 +480,7 @@ export default function ProfilePage() {
                       <th className="text-center px-6 py-3 font-semibold">Speed / Acc</th>
                       <th className="text-center px-6 py-3 font-semibold">Date</th>
                       <th className="text-right px-6 py-3 font-semibold">Stake</th>
+                      <th className="text-right px-6 py-3 font-semibold">TX</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -598,10 +515,41 @@ export default function ProfilePage() {
                             {wpm || "—"} WPM / {acc || "—"}%
                           </td>
                           <td className="px-6 py-4 text-center text-gray-500">
-                            {m.createdAt ? new Date(m.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                            {m.createdAt ? `${new Date(m.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${new Date(m.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : "—"}
                           </td>
                           <td className="px-6 py-4 text-right font-mono text-gray-700">
-                            {props.stakeAmount && parseFloat(props.stakeAmount) > 0 ? `${props.stakeAmount} SOL` : "Practice"}
+                            {props.stakeAmount && parseFloat(props.stakeAmount) > 0 ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span className={isWinner ? "text-green-600" : "text-red-500"}>
+                                  {isWinner ? "+" : "−"}{props.stakeAmount} SOL
+                                </span>
+                                <span className={cn(
+                                  "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
+                                  isMainnet
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-yellow-100 text-yellow-700"
+                                )}>
+                                  {networkLabel}
+                                </span>
+                              </div>
+                            ) : "Free"}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {props.payoutTxSignature ? (
+                              <a
+                                href={`https://solscan.io/tx/${props.payoutTxSignature}${solscanSuffix}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-medium text-purple-500 hover:text-purple-700 transition-colors"
+                              >
+                                {props.payoutTxSignature.slice(0, 6)}...
+                                <span className="material-icons text-[12px]">open_in_new</span>
+                              </a>
+                            ) : props.stakeAmount && parseFloat(props.stakeAmount) > 0 ? (
+                              <span className="text-xs text-gray-400">—</span>
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
                           </td>
                         </tr>
                       );
