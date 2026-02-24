@@ -19,6 +19,10 @@ interface LeaderboardEntry {
   totalEarnings: number;
 }
 
+function isGuestUser(name: string): boolean {
+  return name.trim().toLowerCase() === "guest";
+}
+
 function aggregateMatches(tapestryContents: TapestryContent[]): Map<string, LeaderboardEntry> {
   const playerMap = new Map<string, LeaderboardEntry>();
 
@@ -217,7 +221,7 @@ export default function LeaderboardPage() {
 
           {loading || (tab === "friends" && friendsLoading) ? (
             <div className="p-10 text-center text-gray-500">
-              <span className="material-icons animate-spin mr-2 align-middle">progress_activity</span>
+              <span className="material-symbols-outlined text-base animate-spin flex-shrink-0 inline-flex leading-none mr-2">progress_activity</span>
               Loading…
             </div>
           ) : tab === "friends" && sortedEntries.length === 0 ? (
@@ -248,12 +252,12 @@ export default function LeaderboardPage() {
                   ? "border-l-4 border-l-purple-500 bg-purple-50/50"
                   : "";
 
-                return (
-                  <Link
-                    key={entry.profileId}
-                    href={`/profile/${entry.username}`}
-                    className={`grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors ${rowBorderClass}`}
-                  >
+                const rowClassName = `grid grid-cols-12 gap-4 px-6 py-4 items-center transition-colors ${
+                  isGuestUser(entry.username) ? "" : "hover:bg-gray-50"
+                } ${rowBorderClass}`;
+
+                const rowContent = (
+                  <>
                     <div className="col-span-1 text-center font-bold text-gray-500">
                       {rank <= 3 ? (
                         <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${rank === 1 ? "bg-yellow-400 text-yellow-900" : rank === 2 ? "bg-gray-300 text-gray-700" : "bg-orange-400 text-white"}`}>
@@ -293,6 +297,20 @@ export default function LeaderboardPage() {
                     <div className="col-span-2 text-right font-mono font-bold text-purple-600">
                       {entry.totalEarnings > 0 ? "+" : ""}{entry.totalEarnings.toFixed(2)} SOL
                     </div>
+                  </>
+                );
+
+                if (isGuestUser(entry.username)) {
+                  return (
+                    <div key={entry.profileId} className={rowClassName}>
+                      {rowContent}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link key={entry.profileId} href={`/profile/${entry.username}`} className={rowClassName}>
+                    {rowContent}
                   </Link>
                 );
               })}

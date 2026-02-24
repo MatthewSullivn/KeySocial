@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+const CONTENTS_CACHE_TTL_MS = 5_000; // 5 seconds — short so match history updates quickly after races
+const contentsCache = new Map<string, { body: ArrayBuffer; contentType: string | null; ts: number }>();
+
 function getBaseUrl() {
   return (
     process.env.TAPESTRY_API_URL ||
@@ -48,13 +51,50 @@ async function proxy(req: NextRequest, tapestryPath: string[]) {
     init.body = body;
   }
 
+  const isContentsGet =
+    method === "GET" &&
+    tapestryPath[0] === "contents" &&
+    tapestryPath.length === 1;
+  const cacheKey = isContentsGet ? upstreamUrl.toString() : null;
+
+  if (cacheKey) {
+    const now = Date.now();
+    for (const [k, v] of contentsCache) {
+      if (now - v.ts > CONTENTS_CACHE_TTL_MS) contentsCache.delete(k);
+    }
+    const hit = contentsCache.get(cacheKey);
+    if (hit && now - hit.ts < CONTENTS_CACHE_TTL_MS) {
+      const respHeaders = new Headers();
+      if (hit.contentType) respHeaders.set("content-type", hit.contentType);
+      respHeaders.set("x-cache", "HIT");
+      return new Response(hit.body, { status: 200, headers: respHeaders });
+    }
+  }
+
   const upstream = await fetch(upstreamUrl.toString(), init);
+
+  // Invalidate contents cache when content is created so match history updates immediately
+  if (method === "POST" && tapestryPath[0] === "contents" && upstream.ok) {
+    contentsCache.clear();
+  }
+
+  let responseBody: BodyInit = upstream.body ?? new Uint8Array();
+  if (cacheKey && upstream.ok) {
+    const body = await upstream.arrayBuffer();
+    contentsCache.set(cacheKey, {
+      body,
+      contentType: upstream.headers.get("content-type"),
+      ts: Date.now(),
+    });
+    responseBody = body;
+  }
 
   const respHeaders = new Headers();
   const upstreamContentType = upstream.headers.get("content-type");
   if (upstreamContentType) respHeaders.set("content-type", upstreamContentType);
+  if (cacheKey) respHeaders.set("x-cache", "MISS");
 
-  return new Response(upstream.body, {
+  return new Response(responseBody, {
     status: upstream.status,
     headers: respHeaders,
   });

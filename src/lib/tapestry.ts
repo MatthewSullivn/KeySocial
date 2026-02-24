@@ -173,10 +173,39 @@ export async function getProfileByWallet(walletAddress: string): Promise<Tapestr
     const data = await res.json();
     const profiles = data.profiles as Record<string, unknown>[] | undefined;
     if (!profiles || profiles.length === 0) return null;
+    if (profiles.length === 1) return unwrapProfile(profiles[0]);
+    const getTs = (p: Record<string, unknown>) => {
+      const inner = (p.profile || p) as Record<string, unknown>;
+      const raw = inner.created_at ?? inner.createdAt ?? p.created_at ?? p.createdAt;
+      if (!raw) return Infinity;
+      const t = typeof raw === "string" ? new Date(raw).getTime() : Number(raw);
+      return isNaN(t) ? Infinity : t;
+    };
+    profiles.sort((a, b) => getTs(a) - getTs(b));
     return unwrapProfile(profiles[0]);
   } catch {
     return null;
   }
+}
+
+/**
+ * Check if a username is available for the given wallet.
+ * Returns false if the username is taken by a different wallet (prevents account takeover).
+ */
+export async function isUsernameAvailableForWallet(
+  walletAddress: string,
+  username: string
+): Promise<{ available: boolean; error?: string }> {
+  const normalized = username.toLowerCase().trim();
+  if (!normalized) return { available: false, error: "Username is required" };
+  const existing = await getProfile(normalized);
+  if (!existing) return { available: true };
+  const existingWallet = (existing.walletAddress || "").toLowerCase();
+  const ourWallet = walletAddress.toLowerCase();
+  if (existingWallet && ourWallet && existingWallet !== ourWallet) {
+    return { available: false, error: "Username is already taken" };
+  }
+  return { available: true };
 }
 
 export async function searchProfiles(query: string): Promise<TapestryProfile[]> {
@@ -311,7 +340,10 @@ export async function recordMatchResult(
     stakeAmount: number;
     duration: number;
     matchType: string;
+    network?: string;
     payoutTxSignature?: string;
+    depositTxSignatures?: string[];
+    refundTxSignatures?: string[];
   }
 ): Promise<TapestryContent> {
   const content = `${matchData.winnerUsername} defeated ${matchData.loserUsername} in a KeySocial race! WPM: ${matchData.winnerWPM} vs ${matchData.loserWPM}`;
@@ -331,8 +363,20 @@ export async function recordMatchResult(
     { key: "matchType", value: matchData.matchType },
   ];
 
+  if (matchData.network) {
+    customProperties.push({ key: "network", value: matchData.network });
+  }
+
   if (matchData.payoutTxSignature) {
     customProperties.push({ key: "payoutTxSignature", value: matchData.payoutTxSignature });
+  }
+
+  if (matchData.depositTxSignatures && matchData.depositTxSignatures.length > 0) {
+    customProperties.push({ key: "depositTxSignatures", value: matchData.depositTxSignatures.join(",") });
+  }
+
+  if (matchData.refundTxSignatures && matchData.refundTxSignatures.length > 0) {
+    customProperties.push({ key: "refundTxSignatures", value: matchData.refundTxSignatures.join(",") });
   }
 
   return createContent(profileId, content, "text", customProperties);
@@ -354,6 +398,74 @@ export async function createChallengePost(
   return createContent(profileId, content, "text", extraProperties);
 }
 
+/** Parse raw Tapestry content item into TapestryContent shape. */
+function parseContentItem(item: Record<string, unknown>): TapestryContent {
+  const c = (item.content || item) as Record<string, unknown>;
+  const ap = (item.authorProfile || {}) as Record<string, unknown>;
+  const sc = (item.socialCounts || {}) as Record<string, unknown>;
+  const rpsi = (item.requestingProfileSocialInfo || {}) as Record<string, unknown>;
+
+  const text = (c.text || c.content || c.drop_name || c.title || "") as string;
+  const contentType = (c.contentType || c.type || "text") as string;
+
+  const props: Record<string, string> = {};
+  const cp = (c.customProperties || c.properties) as Record<string, unknown> | undefined;
+  if (cp && typeof cp === "object") {
+    for (const [k, v] of Object.entries(cp)) {
+      if (typeof v === "string") props[k] = v;
+    }
+  }
+  for (const [k, v] of Object.entries(c)) {
+    if (typeof v === "string" && !["id", "namespace", "externalLinkURL"].includes(k) && !(k in props)) {
+      props[k] = v;
+    }
+  }
+
+  return {
+    id: (c.id as string) || "",
+    profileId: (ap.id || c.profileId || "") as string,
+    content: text,
+    contentType,
+    properties: Object.keys(props).length > 0 ? props : undefined,
+    socialCounts: {
+      likes: (sc.likeCount || sc.likes || 0) as number,
+      comments: (sc.commentCount || sc.comments || 0) as number,
+    },
+    hasLiked: rpsi.hasLiked === true,
+    createdAt: c.created_at
+      ? typeof c.created_at === "number"
+        ? new Date(c.created_at as number).toISOString()
+        : String(c.created_at)
+      : undefined,
+    profile: ap.username
+      ? {
+          id: (ap.id as string) || "",
+          username: (ap.username as string) || "",
+          bio: (ap.bio as string) || "",
+          walletAddress: "",
+          namespace: (ap.namespace as string) || "",
+          image: (ap.image as string) || undefined,
+          blockchain: "SOLANA",
+        }
+      : undefined,
+  } as TapestryContent;
+}
+
+/** Get contents authored by a specific profile (their posts, match results, etc.). */
+export async function getContentsByProfile(
+  profileId: string,
+  limit = 50,
+  offset = 0
+): Promise<TapestryContent[]> {
+  const url = `/contents/profile/${encodeURIComponent(profileId)}?limit=${limit}&offset=${offset}`;
+  const res = await tapestryFetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  const rawList = data.contents || data?.posts || data || [];
+  const arr = Array.isArray(rawList) ? rawList : [];
+  return arr.map((item: Record<string, unknown>) => parseContentItem(item));
+}
+
 export async function getContents(
   limit = 50,
   offset = 0,
@@ -367,54 +479,8 @@ export async function getContents(
   if (!res.ok) return [];
   const data = await res.json();
   const rawList = data.contents || data || [];
-
-  return rawList.map((item: Record<string, unknown>) => {
-    const c = (item.content || item) as Record<string, unknown>;
-    const ap = (item.authorProfile || {}) as Record<string, unknown>;
-    const sc = (item.socialCounts || {}) as Record<string, unknown>;
-    const rpsi = (item.requestingProfileSocialInfo || {}) as Record<string, unknown>;
-
-    // Tapestry stores properties as flat keys on the content node
-    const text = (c.text || c.content || c.drop_name || c.title || "") as string;
-    const contentType = (c.contentType || c.type || "text") as string;
-
-    // Build a properties map from the flat content object
-    const props: Record<string, string> = {};
-    for (const [k, v] of Object.entries(c)) {
-      if (typeof v === "string" && !["id", "namespace", "externalLinkURL"].includes(k)) {
-        props[k] = v;
-      }
-    }
-
-    return {
-      id: (c.id as string) || "",
-      profileId: (ap.id || "") as string,
-      content: text,
-      contentType,
-      properties: Object.keys(props).length > 0 ? props : undefined,
-      socialCounts: {
-        likes: (sc.likeCount || sc.likes || 0) as number,
-        comments: (sc.commentCount || sc.comments || 0) as number,
-      },
-      hasLiked: rpsi.hasLiked === true,
-      createdAt: c.created_at
-        ? typeof c.created_at === "number"
-          ? new Date(c.created_at as number).toISOString()
-          : String(c.created_at)
-        : undefined,
-      profile: ap.username
-        ? {
-            id: (ap.id as string) || "",
-            username: (ap.username as string) || "",
-            bio: (ap.bio as string) || "",
-            walletAddress: "",
-            namespace: (ap.namespace as string) || "",
-            image: (ap.image as string) || undefined,
-            blockchain: "SOLANA",
-          }
-        : undefined,
-    } as TapestryContent;
-  });
+  const arr = Array.isArray(rawList) ? rawList : [];
+  return arr.map((item: Record<string, unknown>) => parseContentItem(item));
 }
 
 export async function getContentById(contentId: string): Promise<TapestryContent | null> {

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import dynamic from "next/dynamic";
 import { useUserStore } from "@/store/user-store";
-import { findOrCreateProfile } from "@/lib/tapestry";
+import { findOrCreateProfile, isUsernameAvailableForWallet } from "@/lib/tapestry";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import AppHeader from "@/components/layout/AppHeader";
@@ -21,14 +21,30 @@ const WalletMultiButton = dynamic(
 export default function CreateProfilePage() {
   const router = useRouter();
   const { connected, publicKey } = useWallet();
-  const { setProfile } = useUserStore();
+  const { setProfile, profile, isProfileLoading } = useUserStore();
 
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingExisting, setCheckingExisting] = useState(true);
   const [error, setError] = useState("");
 
   const walletAddress = publicKey?.toBase58() || "";
+
+  useEffect(() => {
+    if (!connected || !walletAddress) {
+      setCheckingExisting(false);
+      return;
+    }
+    if (profile?.walletAddress?.toLowerCase() === walletAddress.toLowerCase()) {
+      setCheckingExisting(false);
+      router.replace(`/profile/${profile.username || profile.id}`);
+      return;
+    }
+    if (!isProfileLoading) {
+      setCheckingExisting(false);
+    }
+  }, [connected, walletAddress, profile, isProfileLoading, router]);
 
   async function handleCreateProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +55,12 @@ export default function CreateProfilePage() {
     if (username.length < 3) { setError("Username must be at least 3 characters."); return; }
     if (username.length > 20) { setError("Username must be 20 characters or less."); return; }
     if (!/^[a-zA-Z0-9_]+$/.test(username)) { setError("Username can only contain letters, numbers, and underscores."); return; }
+
+    const check = await isUsernameAvailableForWallet(walletAddress, username);
+    if (!check.available) {
+      setError(check.error || "Username is already taken.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -52,6 +74,20 @@ export default function CreateProfilePage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingExisting && connected) {
+    return (
+      <div className="min-h-screen bg-background text-text flex flex-col">
+        <AppHeader />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-gray-500 flex items-center gap-2">
+            <span className="material-symbols-outlined text-base animate-spin flex-shrink-0 inline-flex leading-none">progress_activity</span>
+            Checking for existing profile…
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -159,10 +195,10 @@ export default function CreateProfilePage() {
                 )}
               >
                 {loading ? (
-                  <>
-                    <span className="material-icons animate-spin text-xl">progress_activity</span>
-                    Creating Profile...
-                  </>
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined text-xl animate-spin flex-shrink-0 inline-flex leading-none">progress_activity</span>
+                    <span>Creating Profile...</span>
+                  </span>
                 ) : (
                   <>
                     <span className="material-icons text-xl">check_circle</span>

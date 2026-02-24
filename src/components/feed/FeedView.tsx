@@ -42,32 +42,6 @@ export interface LocalPost {
 }
 
 function tapestryContentToLocalPost(tc: TapestryContent): LocalPost | null {
-  const isMatch = tc.properties?.type === "match_result";
-
-  if (isMatch) {
-    const p = tc.properties!;
-    return {
-      id: tc.id,
-      author: p.winnerUsername || tc.profile?.username || "Racer",
-      handle: `@${p.winnerUsername || tc.profile?.username || "racer"}`,
-      content: tc.content || "",
-      createdAt: tc.createdAt || new Date().toISOString(),
-      likes: tc.socialCounts?.likes || 0,
-      comments: tc.socialCounts?.comments || 0,
-      hasLiked: tc.hasLiked || false,
-      postType: "match_result",
-      matchResult: {
-        winnerUsername: p.winnerUsername || "Unknown",
-        loserUsername: p.loserUsername || "Unknown",
-        winnerWPM: parseInt(p.winnerWPM || "0"),
-        loserWPM: parseInt(p.loserWPM || "0"),
-        winnerAccuracy: parseInt(p.winnerAccuracy || "0"),
-        loserAccuracy: parseInt(p.loserAccuracy || "0"),
-        stakeAmount: parseFloat(p.stakeAmount || "0"),
-      },
-    };
-  }
-
   const text = tc.content || tc.properties?.text || "";
   if (!text.trim()) return null;
 
@@ -156,15 +130,14 @@ export default function FeedView() {
       const computed = computeStatsFromContents(contents, pid);
       setStats(computed);
 
-      // Convert posts (non-match-result content)
+      // Convert posts: exclude match_result (auto-recorded); only match_flex (user-flexed) and other posts show in feed
       const converted = contents
         .map(tapestryContentToLocalPost)
         .filter((p): p is LocalPost => p !== null)
         .filter((p) => {
-          if (p.postType !== "match_result" || !p.matchResult) return true;
-          const w = p.matchResult.winnerUsername.toLowerCase();
-          const l = p.matchResult.loserUsername.toLowerCase();
-          return w !== "keybot" && l !== "keybot";
+          // match_result = auto-recorded for profile/leaderboard only, never shown in feed
+          if (p.postType === "match_result") return false;
+          return true;
         });
       setPosts(converted);
     } catch (err) {

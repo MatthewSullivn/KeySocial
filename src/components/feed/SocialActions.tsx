@@ -25,8 +25,12 @@ interface SocialActionsProps {
   initialLikes: number;
   initialComments: number;
   initialHasLiked?: boolean;
-  showRepost?: boolean;
   showShare?: boolean;
+  shareText?: string;
+}
+
+function isGuestUser(name: string): boolean {
+  return name.trim().toLowerCase() === "guest";
 }
 
 export function SocialActions({
@@ -34,8 +38,8 @@ export function SocialActions({
   initialLikes,
   initialComments,
   initialHasLiked = false,
-  showRepost = false,
   showShare = false,
+  shareText,
 }: SocialActionsProps) {
   const { profile } = useUserStore();
   const [liked, setLiked] = useState(initialHasLiked);
@@ -125,6 +129,18 @@ export function SocialActions({
     }
   }
 
+  function handleShare() {
+    const url = `${window.location.origin}/feed`;
+    const text = shareText || "Check out this race on KeySocial!";
+
+    if (navigator.share) {
+      navigator.share({ title: "KeySocial", text, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(`${text}\n${url}`);
+      toast.success("Copied to clipboard!");
+    }
+  }
+
   function formatTime(dateStr: string) {
     const ms = Date.now() - new Date(dateStr).getTime();
     if (ms < 60000) return "just now";
@@ -156,14 +172,8 @@ export function SocialActions({
           </span>
           <span className="text-sm font-medium">{commentsOpen ? comments.length : initialComments}</span>
         </button>
-        {showRepost && (
-          <button type="button" className="flex items-center gap-2 hover:text-teal-500 transition-colors group">
-            <span className="material-icons text-xl group-hover:scale-110 transition-transform">repeat</span>
-            <span className="text-sm font-medium">0</span>
-          </button>
-        )}
         {showShare && (
-          <button type="button" className="flex items-center gap-2 hover:text-gray-600 transition-colors ml-auto">
+          <button type="button" onClick={handleShare} className="flex items-center gap-2 hover:text-gray-600 transition-colors ml-auto">
             <span className="material-icons text-xl">share</span>
           </button>
         )}
@@ -178,12 +188,22 @@ export function SocialActions({
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {comments.map((c, idx) => (
                 <div key={c.id || `comment-${idx}`} className="flex gap-3 group/comment">
-                  <Link href={`/profile/${c.author}`} className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-600 shrink-0 hover:ring-2 hover:ring-purple-300 transition-all">
-                    {c.author[0]?.toUpperCase()}
-                  </Link>
+                  {isGuestUser(c.author) ? (
+                    <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-600 shrink-0">
+                      {c.author[0]?.toUpperCase()}
+                    </div>
+                  ) : (
+                    <Link href={`/profile/${c.author}`} className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-600 shrink-0 hover:ring-2 hover:ring-purple-300 transition-all">
+                      {c.author[0]?.toUpperCase()}
+                    </Link>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <Link href={`/profile/${c.author}`} className="font-bold text-sm text-gray-900 hover:text-purple-600 transition-colors">{c.author}</Link>
+                      {isGuestUser(c.author) ? (
+                        <span className="font-bold text-sm text-gray-900">{c.author}</span>
+                      ) : (
+                        <Link href={`/profile/${c.author}`} className="font-bold text-sm text-gray-900 hover:text-purple-600 transition-colors">{c.author}</Link>
+                      )}
                       <span className="text-xs text-gray-400">{formatTime(c.createdAt)}</span>
                       {currentUsername && c.author === currentUsername && (
                         <button

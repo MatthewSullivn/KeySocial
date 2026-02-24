@@ -39,6 +39,7 @@ interface GameStore {
   // Multiplayer
   matchMode: "bot" | "multiplayer";
   roomCode: string | null;
+  depositTxSignatures: string[];
 
   // Actions
   initGame: (
@@ -57,7 +58,8 @@ interface GameStore {
     difficulty: string,
     trackLength: number,
     roomCode: string,
-    stakeAmount?: number
+    stakeAmount?: number,
+    depositTxSignatures?: string[]
   ) => void;
   setMatchMode: (mode: "bot" | "multiplayer") => void;
   setRoomCode: (code: string | null) => void;
@@ -78,7 +80,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   timeElapsed: 0,
   startTime: null,
 
-  player: createPlayerState("player", "Player"),
+  player: createPlayerState("player", "Guest"),
   opponent: createPlayerState("ai", "KeyBot"),
 
   currentWord: null,
@@ -91,6 +93,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   matchMode: "bot",
   roomCode: null,
+  depositTxSignatures: [],
 
   initGame: (playerId, playerUsername, difficulty, matchType, stakeAmount) => {
     const config = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.medium;
@@ -115,10 +118,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       matchType,
       matchMode: "bot",
       roomCode: null,
+      depositTxSignatures: [],
     });
   },
 
-  initMultiplayerGame: (playerId, playerUsername, opponentId, opponentUsername, words, difficulty, trackLength, roomCode, stakeAmount = 0) => {
+  initMultiplayerGame: (playerId, playerUsername, opponentId, opponentUsername, words, difficulty, trackLength, roomCode, stakeAmount = 0, depositTxSignatures = []) => {
     const config = DIFFICULTY_CONFIGS[difficulty] || DIFFICULTY_CONFIGS.medium;
     const configWithTrack = { ...config, trackLength };
 
@@ -138,6 +142,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       matchType: stakeAmount > 0 ? "ranked" : "practice",
       matchMode: "multiplayer",
       roomCode,
+      depositTxSignatures,
     });
   },
 
@@ -324,6 +329,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       matchResult: null,
       matchMode: "bot",
       roomCode: null,
+      depositTxSignatures: [],
     });
   },
 }));

@@ -4,6 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useUserStore } from "@/store/user-store";
 import { useNetwork } from "@/providers/NetworkProvider";
 import { cn } from "@/lib/utils";
@@ -27,11 +28,10 @@ const NAV: NavItem[] = [
 
 export default function AppHeader({ className }: { className?: string }) {
   const pathname = usePathname();
+  const { connected } = useWallet();
   const { profile } = useUserStore();
-  const { network, networkLabel } = useNetwork();
+  const { networkLabel } = useNetwork();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const isMainnet = network === "mainnet-beta";
 
   const profileHref = useMemo(() => {
     return profile ? `/profile/${profile.username || profile.id}` : "/create-profile";
@@ -86,37 +86,44 @@ export default function AppHeader({ className }: { className?: string }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className={cn(
-              "hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
-              isMainnet
-                ? "bg-green-50 border border-green-200 text-green-700"
-                : "bg-yellow-50 border border-yellow-200 text-yellow-700"
-            )}>
-              <span className={cn("w-2 h-2 rounded-full", isMainnet ? "bg-green-500" : "bg-yellow-500")} />
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-yellow-50 border border-yellow-200 text-yellow-700">
+              <span className="w-2 h-2 rounded-full bg-yellow-500" />
               Solana {networkLabel}
             </div>
 
-            <Link
-              href={profileHref}
-              className={cn(
-                "hidden md:flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all",
-                isProfileActive
-                  ? "text-purple-600 bg-purple-50"
-                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-              )}
-            >
-              {profile ? (
-                <span className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center">
-                  {profile.username?.[0]?.toUpperCase() || "?"}
-                </span>
-              ) : (
-                <span className="material-icons-outlined text-[18px]">person</span>
-              )}
-              {profile ? profile.username : "Profile"}
-            </Link>
+            {connected && (
+              <Link
+                href={profileHref}
+                className={cn(
+                  "hidden md:flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all",
+                  isProfileActive
+                    ? "text-purple-600 bg-purple-50"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                )}
+              >
+                {profile ? (
+                  <>
+                    <span className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center">
+                      {profile.username?.[0]?.toUpperCase() || "?"}
+                    </span>
+                    {profile.username}
+                  </>
+                ) : (
+                  <>
+                    <span className="material-icons-outlined text-[18px]">person_add</span>
+                    Create Profile
+                  </>
+                )}
+              </Link>
+            )}
 
             <div className="hidden sm:block">
-              <WalletMultiButton className="!bg-white !text-purple-600 !px-5 !py-2 !rounded-lg !text-sm !font-bold !border !border-purple-500 hover:!bg-purple-50" />
+              <WalletMultiButton className={cn(
+                "!rounded-lg !text-sm !font-bold !border",
+                connected
+                  ? "!bg-white !text-purple-600 !px-5 !py-2 !border-purple-500 hover:!bg-purple-50"
+                  : "!bg-purple-500 !text-white !px-5 !py-2 !border-purple-600 hover:!bg-purple-600"
+              )} />
             </div>
 
             <button
@@ -133,7 +140,10 @@ export default function AppHeader({ className }: { className?: string }) {
       {mobileOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-2">
-            <WalletMultiButton className="!justify-center !bg-white !text-purple-600 !rounded-lg !border !border-purple-500" />
+            <WalletMultiButton className={cn(
+              "!justify-center !rounded-lg !font-bold",
+              connected ? "!bg-white !text-purple-600 !border !border-purple-500" : "!bg-purple-500 !text-white !border !border-purple-600"
+            )} />
             <div className="h-px bg-gray-200 my-2" />
             {NAV.map((item) => (
               <Link
@@ -151,19 +161,23 @@ export default function AppHeader({ className }: { className?: string }) {
                 {item.label}
               </Link>
             ))}
-            <Link
-              href={profileHref}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "px-4 py-3 rounded-lg text-sm font-semibold transition-all flex items-center gap-2",
-                isProfileActive
-                  ? "bg-purple-50 text-purple-600"
-                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-              )}
-            >
-              <span className="material-icons-outlined text-[18px]">person</span>
-              Profile
-            </Link>
+            {connected && (
+              <Link
+                href={profileHref}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "px-4 py-3 rounded-lg text-sm font-semibold transition-all flex items-center gap-2",
+                  isProfileActive
+                    ? "bg-purple-50 text-purple-600"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                )}
+              >
+                <span className="material-icons-outlined text-[18px]">
+                  {profile ? "person" : "person_add"}
+                </span>
+                {profile ? profile.username : "Create Profile"}
+              </Link>
+            )}
           </div>
         </div>
       )}

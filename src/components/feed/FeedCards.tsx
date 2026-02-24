@@ -5,6 +5,10 @@ import Link from "next/link";
 import type { TapestryContent, TapestryProfile } from "@/lib/tapestry";
 import { SocialActions } from "./SocialActions";
 
+function isGuestUser(name: string): boolean {
+  return name.trim().toLowerCase() === "guest";
+}
+
 function PostMenu({ onDelete }: { onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -154,23 +158,43 @@ export function FeedCardRaceResult({
       <div className="bg-[#0f1115] border border-gray-700 rounded-xl p-5">
         {/* VS header */}
         <div className="flex items-center justify-between gap-4 mb-5">
-          <Link href={`/profile/${winnerUsername}`} className="flex flex-col items-center gap-2 flex-1 group">
-            <div className="w-14 h-14 rounded-full bg-purple-500 flex items-center justify-center text-white text-xl font-black border-2 border-yellow-400 group-hover:ring-2 group-hover:ring-purple-400 transition-all">
-              {winnerUsername[0]?.toUpperCase()}
+          {isGuestUser(winnerUsername) ? (
+            <div className="flex flex-col items-center gap-2 flex-1">
+              <div className="w-14 h-14 rounded-full bg-purple-500 flex items-center justify-center text-white text-xl font-black border-2 border-yellow-400">
+                {winnerUsername[0]?.toUpperCase()}
+              </div>
+              <span className="font-bold text-sm text-white truncate max-w-[100px]">{winnerUsername}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/15 text-yellow-400 font-bold">WINNER</span>
             </div>
-            <span className="font-bold text-sm text-white group-hover:text-purple-400 transition-colors truncate max-w-[100px]">{winnerUsername}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/15 text-yellow-400 font-bold">WINNER</span>
-          </Link>
+          ) : (
+            <Link href={`/profile/${winnerUsername}`} className="flex flex-col items-center gap-2 flex-1 group">
+              <div className="w-14 h-14 rounded-full bg-purple-500 flex items-center justify-center text-white text-xl font-black border-2 border-yellow-400 group-hover:ring-2 group-hover:ring-purple-400 transition-all">
+                {winnerUsername[0]?.toUpperCase()}
+              </div>
+              <span className="font-bold text-sm text-white group-hover:text-purple-400 transition-colors truncate max-w-[100px]">{winnerUsername}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/15 text-yellow-400 font-bold">WINNER</span>
+            </Link>
+          )}
 
           <div className="text-2xl font-black text-gray-500">VS</div>
 
-          <Link href={`/profile/${loserUsername}`} className="flex flex-col items-center gap-2 flex-1 group">
-            <div className="w-14 h-14 rounded-full bg-gray-600 flex items-center justify-center text-white text-xl font-black group-hover:ring-2 group-hover:ring-gray-400 transition-all">
-              {loserUsername[0]?.toUpperCase()}
+          {isGuestUser(loserUsername) ? (
+            <div className="flex flex-col items-center gap-2 flex-1">
+              <div className="w-14 h-14 rounded-full bg-gray-600 flex items-center justify-center text-white text-xl font-black">
+                {loserUsername[0]?.toUpperCase()}
+              </div>
+              <span className="font-bold text-sm text-white truncate max-w-[100px]">{loserUsername}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 font-bold">DEFEATED</span>
             </div>
-            <span className="font-bold text-sm text-white group-hover:text-purple-400 transition-colors truncate max-w-[100px]">{loserUsername}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 font-bold">DEFEATED</span>
-          </Link>
+          ) : (
+            <Link href={`/profile/${loserUsername}`} className="flex flex-col items-center gap-2 flex-1 group">
+              <div className="w-14 h-14 rounded-full bg-gray-600 flex items-center justify-center text-white text-xl font-black group-hover:ring-2 group-hover:ring-gray-400 transition-all">
+                {loserUsername[0]?.toUpperCase()}
+              </div>
+              <span className="font-bold text-sm text-white group-hover:text-purple-400 transition-colors truncate max-w-[100px]">{loserUsername}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 font-bold">DEFEATED</span>
+            </Link>
+          )}
         </div>
 
         {/* Stats comparison */}
@@ -198,7 +222,14 @@ export function FeedCardRaceResult({
         </div>
       </div>
 
-      <SocialActions postId={postId} initialLikes={likes} initialComments={comments} initialHasLiked={hasLiked} showRepost showShare />
+      <SocialActions
+        postId={postId}
+        initialLikes={likes}
+        initialComments={comments}
+        initialHasLiked={hasLiked}
+        showShare
+        shareText={`${winnerUsername} defeated ${loserUsername} in a KeySocial typing race! ${winnerWPM} WPM vs ${loserWPM} WPM${stakeAmount > 0 ? ` | Stake: ${stakeAmount} SOL` : ""} #KeySocial`}
+      />
     </div>
   );
 }
@@ -220,12 +251,25 @@ export function FeedCardPost({
   return (
     <div className={`bg-white border-l-4 ${borderColor} border border-gray-200 rounded-xl p-5`}>
       <div className="flex gap-4">
-        <Link href={`/profile/${author}`} className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold shrink-0 hover:ring-2 hover:ring-purple-300 transition-all">
-          {author[0]?.toUpperCase()}
-        </Link>
+        {isGuestUser(author) ? (
+          <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold shrink-0">
+            {author[0]?.toUpperCase()}
+          </div>
+        ) : (
+          <Link href={`/profile/${author}`} className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold shrink-0 hover:ring-2 hover:ring-purple-300 transition-all">
+            {author[0]?.toUpperCase()}
+          </Link>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <div><Link href={`/profile/${author}`} className="font-display font-bold text-lg text-gray-900 hover:text-purple-600 transition-colors">{author}</Link><p className="text-xs text-gray-500">{timeAgo}</p></div>
+            <div>
+              {isGuestUser(author) ? (
+                <span className="font-display font-bold text-lg text-gray-900">{author}</span>
+              ) : (
+                <Link href={`/profile/${author}`} className="font-display font-bold text-lg text-gray-900 hover:text-purple-600 transition-colors">{author}</Link>
+              )}
+              <p className="text-xs text-gray-500">{timeAgo}</p>
+            </div>
             {onDelete ? (
               <PostMenu onDelete={onDelete} />
             ) : (

@@ -10,6 +10,11 @@ export interface PlayerPresence {
   id: string;
   username: string;
   isHost: boolean;
+  difficulty?: string;
+  stakeAmount?: number;
+  walletAddress?: string;
+  depositAmount?: number;
+  depositNetwork?: string;
 }
 
 export interface ProgressPayload {
@@ -39,11 +44,13 @@ export interface StakeInfoPayload {
 export interface DepositConfirmedPayload {
   playerId: string;
   txSignature: string;
+  username: string;
+  amount: number;
 }
 
 export interface RoomEvent {
-  type: "game_start" | "progress" | "player_finished" | "player_left" | "stake_info" | "deposit_confirmed";
-  payload: GameStartPayload | ProgressPayload | { playerId: string } | StakeInfoPayload | DepositConfirmedPayload;
+  type: "game_start" | "progress" | "player_finished" | "player_left" | "stake_info" | "deposit_confirmed" | "room_cancelled";
+  payload?: GameStartPayload | ProgressPayload | { playerId: string } | StakeInfoPayload | DepositConfirmedPayload;
 }
 
 // ── Room code generation ──
@@ -80,6 +87,8 @@ export function createRoomChannel(
     onPlayerFinished: (playerId: string) => void;
     onStakeInfo?: (payload: StakeInfoPayload) => void;
     onDepositConfirmed?: (payload: DepositConfirmedPayload) => void;
+    onRoomCancelled?: () => void;
+    onHostFound?: (host: PlayerPresence) => void;
   }
 ): RealtimeChannel {
   cleanupChannel();
@@ -104,6 +113,19 @@ export function createRoomChannel(
     }
   });
 
+  channel.on("presence", { event: "sync" }, () => {
+    const state = channel.presenceState();
+    for (const key of Object.keys(state)) {
+      for (const p of state[key] || []) {
+        const pres = p as unknown as PlayerPresence;
+        if (pres.isHost && pres.id !== player.id && callbacks.onHostFound) {
+          callbacks.onHostFound(pres);
+          break;
+        }
+      }
+    }
+  });
+
   channel.on("broadcast", { event: "room_event" }, ({ payload }) => {
     const evt = payload as RoomEvent;
     switch (evt.type) {
@@ -122,6 +144,9 @@ export function createRoomChannel(
       case "deposit_confirmed":
         callbacks.onDepositConfirmed?.(evt.payload as DepositConfirmedPayload);
         break;
+      case "room_cancelled":
+        callbacks.onRoomCancelled?.();
+        break;
       default:
         break;
     }
@@ -133,6 +158,8 @@ export function createRoomChannel(
         id: player.id,
         username: player.username,
         isHost: player.isHost,
+        difficulty: player.difficulty,
+        stakeAmount: player.stakeAmount,
       });
     }
   });
@@ -172,12 +199,22 @@ export function broadcastStakeInfo(
   });
 }
 
+export function broadcastRoomCancelled(channel: RealtimeChannel) {
+  channel.send({
+    type: "broadcast",
+    event: "room_event",
+    payload: { type: "room_cancelled" } as RoomEvent,
+  });
+}
+
 export function broadcastDepositConfirmed(
   channel: RealtimeChannel,
   playerId: string,
-  txSignature: string
+  txSignature: string,
+  username: string,
+  amount: number
 ) {
-  const payload: DepositConfirmedPayload = { playerId, txSignature };
+  const payload: DepositConfirmedPayload = { playerId, txSignature, username, amount };
   channel.send({
     type: "broadcast",
     event: "room_event",

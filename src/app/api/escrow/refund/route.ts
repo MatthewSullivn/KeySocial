@@ -6,12 +6,16 @@ import {
   SystemProgram,
   LAMPORTS_PER_SOL,
   PublicKey,
-  sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import bs58 from "bs58";
+import { waitForSignatureConfirmation } from "@/lib/escrow";
 
 const RPC_URL =
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+
+// In-memory dedup: prevent double refunds within a 30s window
+const recentRefunds = new Map<string, number>();
+const DEDUP_WINDOW_MS = 30_000;
 
 function getEscrowKeypair(): Keypair {
   const secret = process.env.ESCROW_SECRET_KEY;
@@ -38,13 +42,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the network the client was on, fall back to env/devnet
-    const rpcUrl =
-      network === "mainnet-beta"
-        ? process.env.NEXT_PUBLIC_SOLANA_RPC_URL || RPC_URL
-        : network === "devnet"
-        ? "https://api.devnet.solana.com"
-        : RPC_URL;
+    // Dedup: reject duplicate refund requests within 30s window
+    const dedupKey = `${walletAddress}-${amount}-${network || "devnet"}`;
+    const now = Date.now();
+    // Cleanup stale entries
+    for (const [key, ts] of recentRefunds) {
+      if (now - ts > DEDUP_WINDOW_MS) recentRefunds.delete(key);
+    }
+    const lastRefund = recentRefunds.get(dedupKey);
+    if (lastRefund && now - lastRefund < DEDUP_WINDOW_MS) {
+      console.log("[Refund] Dedup rejected:", dedupKey);
+      return NextResponse.json(
+        { error: "Duplicate refund request", dedupKey },
+        { status: 409 }
+      );
+    }
+    recentRefunds.set(dedupKey, now);
+
+    // Always devnet
+    const rpcUrl = RPC_URL;
 
     const escrowKeypair = getEscrowKeypair();
     const connection = new Connection(rpcUrl, "confirmed");
@@ -69,11 +85,8 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    const txSignature = await sendAndConfirmTransaction(
-      connection,
-      transaction,
-      [escrowKeypair]
-    );
+    const txSignature = await connection.sendTransaction(transaction, [escrowKeypair]);
+    await waitForSignatureConfirmation(connection, txSignature, "confirmed");
 
     return NextResponse.json({ txSignature, refundedAmount: amount });
   } catch (err) {

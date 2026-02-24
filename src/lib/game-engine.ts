@@ -235,23 +235,20 @@ export function generateAIAction(
   targetWPM: number,
   _elapsedMs: number
 ): { correct: boolean; delay: number } {
-  // Each AI action types ~1 word (avg 5 chars + 1 space = 6 chars).
-  // WPM = (totalChars / 5) / minutes, so delay per word = 72000 / targetWPM (ms).
-  const avgCharsPerWord = 6;
-  const baseDelay = (avgCharsPerWord / (targetWPM / 60)) * 1000 / avgCharsPerWord;
-  // Simplified: delay (ms) = 60000 / targetWPM per character, times chars per word
-  // = (avgCharsPerWord * 60000) / (targetWPM * 5)
-  const wordDelay = (avgCharsPerWord * 60000) / (targetWPM * 5);
+  // Each AI action types 1 word (6 correctHits: 5 chars + space, matching human).
+  // WPM = (correctHits / 5) / minutes. For targetWPM words/min: delay = 60000/targetWPM ms per word.
+  const wordDelay = 60000 / targetWPM;
 
-  // Add ±15% natural variance so the bot doesn't feel robotic
-  const variance = wordDelay * 0.15;
+  // Add ±8% variance so the bot feels natural but stays close to target
+  const variance = wordDelay * 0.08;
   const delay = wordDelay + (Math.random() - 0.5) * 2 * variance;
 
   // High accuracy for all bots (they mostly type correctly)
   const accuracy = targetWPM >= 100 ? 0.97 : targetWPM >= 60 ? 0.95 : 0.93;
   const correct = Math.random() < accuracy;
 
-  return { correct, delay: Math.max(200, delay) };
+  // Min 400ms so bot never exceeds ~150 WPM even with bad variance
+  return { correct, delay: Math.max(400, delay) };
 }
 
 // Calculate final match result

@@ -52,6 +52,7 @@ function GamePageInner() {
     stakeAmount,
     matchResult,
     matchMode,
+    depositTxSignatures,
     startCountdown,
     handleKeyPress,
     updateOpponent,
@@ -60,14 +61,28 @@ function GamePageInner() {
   } = useGameStore();
 
   const { profile } = useUserStore();
-  const { solscanSuffix, networkLabel, network } = useNetwork();
-  const isMainnet = network === "mainnet-beta";
+  const { solscanSuffix, networkLabel } = useNetwork();
 
   const [lastResult, setLastResult] = useState<"correct" | "wrong" | null>(null);
   const [showSetup, setShowSetup] = useState(true);
   const [payoutTxSig, setPayoutTxSig] = useState<string | null>(null);
+  const [refundTxSigs, setRefundTxSigs] = useState<string[]>([]);
+  const payoutTxSigRef = useRef<string | null>(null);
+  const refundTxSigsRef = useRef<string[]>([]);
 
   const didResetOnMount = useRef(false);
+  useEffect(() => {
+    payoutTxSigRef.current = payoutTxSig;
+  }, [payoutTxSig]);
+  useEffect(() => {
+    refundTxSigsRef.current = refundTxSigs;
+  }, [refundTxSigs]);
+
+  function addRefundTxSig(sig?: string | null) {
+    if (!sig) return;
+    setRefundTxSigs((prev) => (prev.includes(sig) ? prev : [...prev, sig]));
+  }
+
   useEffect(() => {
     if (didResetOnMount.current) return;
     didResetOnMount.current = true;
@@ -205,24 +220,107 @@ function GamePageInner() {
 
   const didRecordMatch = useRef(false);
   useEffect(() => {
-    if (gameState === "finished" && matchResult && profile && !didRecordMatch.current) {
+    if (gameState === "finished" && matchResult && !didRecordMatch.current) {
       didRecordMatch.current = true;
+      setPayoutTxSig(null);
+      setRefundTxSigs([]);
       recordMatchOnChain();
     }
 
     if (gameState === "finished" && matchMode === "multiplayer") {
+      // Keep the room alive longer for staked matches so both players
+      // can receive payout/refund broadcast confirmations.
+      const cleanupDelayMs = stakeAmount > 0 ? 20_000 : 5_000;
       setTimeout(() => {
         cleanupChannel();
         mpChannelRef.current = null;
-      }, 5000);
+      }, cleanupDelayMs);
     }
-  }, [gameState, matchResult]);
+  }, [gameState, matchResult, matchMode, stakeAmount]);
 
   async function claimPayout(): Promise<string | null> {
     const walletAddr = useUserStore.getState().walletAddress;
     if (!walletAddr) return null;
 
+    async function attemptSafetyRefund(reason: string): Promise<void> {
+      if (stakeAmount <= 0) return;
+      try {
+        const refundRes = await fetch("/api/escrow/refund", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            walletAddress: walletAddr,
+            amount: stakeAmount,
+            network: "devnet",
+          }),
+        });
+        const refundData = await refundRes.json().catch(() => ({}));
+        if (refundRes.ok && refundData.txSignature) {
+          addRefundTxSig(refundData.txSignature);
+          if (mpChannelRef.current) {
+            mpChannelRef.current.send({
+              type: "broadcast",
+              event: "room_event",
+              payload: {
+                type: "refund_confirmed",
+                payload: {
+                  txSignature: refundData.txSignature,
+                  walletAddress: walletAddr,
+                  amountSOL: stakeAmount,
+                },
+              },
+            });
+          }
+          toast.warning(`Payout failed (${reason}). Safety refund sent: ${stakeAmount} SOL`, {
+            description: `TX: ${refundData.txSignature.slice(0, 16)}...`,
+            duration: 12000,
+            action: {
+              label: "View TX",
+              onClick: () =>
+                window.open(`https://solscan.io/tx/${refundData.txSignature}${solscanSuffix}`, "_blank"),
+            },
+          });
+        } else if (refundRes.status === 409) {
+          toast.warning(`Payout failed (${reason}). Refund already requested.`);
+        } else {
+          toast.error(
+            `Payout failed (${reason}) and safety refund failed: ${
+              refundData.error || "Unknown error"
+            }`
+          );
+        }
+      } catch (refundErr) {
+        console.error("Safety refund error:", refundErr);
+        toast.error(`Payout failed (${reason}) and safety refund request failed.`);
+      }
+    }
+
+    function getPayoutStorageKey(): string {
+      const dep = depositTxSignatures?.[0];
+      const fp = dep || `payout-${player.id}-${opponent.id}-${stakeAmount}-${startTime}`;
+      return `keysocial-payout-${fp}`;
+    }
+
     try {
+      const storageKey = getPayoutStorageKey();
+      const stored = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(storageKey) : null;
+      if (stored) {
+        try {
+          const { txSignature: cachedSig } = JSON.parse(stored);
+          if (cachedSig) {
+            setPayoutTxSig(cachedSig);
+            return cachedSig;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const idempotencyKey = crypto.randomUUID();
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem(storageKey, JSON.stringify({ idempotencyKey }));
+      }
+
       const res = await fetch("/api/escrow/payout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -230,14 +328,36 @@ function GamePageInner() {
           winnerWallet: walletAddr,
           stakeAmount,
           matchContentId: "pending",
+          idempotencyKey,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        const winnings = (stakeAmount * 2 * 0.95).toFixed(3);
+        const winnings = (stakeAmount * 2).toFixed(3);
         const sig = data.txSignature || null;
         setPayoutTxSig(sig);
+        if (sig && typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem(
+            getPayoutStorageKey(),
+            JSON.stringify({ txSignature: sig, idempotencyKey })
+          );
+        }
+        if (sig && mpChannelRef.current) {
+          mpChannelRef.current.send({
+            type: "broadcast",
+            event: "room_event",
+            payload: {
+              type: "payout_confirmed",
+              payload: {
+                txSignature: sig,
+                winnerId: player.id,
+                winnerUsername: player.username,
+                payoutSOL: Number(winnings),
+              },
+            },
+          });
+        }
         toast.success(`Winnings deposited! +${winnings} SOL`, {
           description: sig ? `TX: ${sig.slice(0, 16)}...` : undefined,
           action: sig ? {
@@ -247,42 +367,116 @@ function GamePageInner() {
         });
         return sig;
       } else {
-        const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        toast.error("Failed to claim winnings: " + (err.error || "Unknown error"));
+        const text = await res.text();
+        let err: { error?: string; details?: string };
+        try {
+          err = JSON.parse(text);
+        } catch {
+          err = { error: "Server error", details: text.slice(0, 200) || `${res.status} ${res.statusText}` };
+        }
+        const reason = err.details || err.error || "Unknown error";
+        toast.error("Failed to claim winnings: " + reason);
+        await attemptSafetyRefund(reason);
       }
     } catch (err) {
       console.error("Payout claim error:", err);
-      toast.error("Failed to claim winnings");
+      const reason = err instanceof Error ? err.message : "Request failed";
+      toast.error("Failed to claim winnings: " + reason);
+      await attemptSafetyRefund(reason);
     }
     return null;
   }
 
+  async function waitForPayoutSignature(timeoutMs = 12000): Promise<string | null> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (payoutTxSigRef.current) return payoutTxSigRef.current;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return payoutTxSigRef.current;
+  }
+
+  async function waitForRefundSignatures(timeoutMs = 12000): Promise<string[]> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (refundTxSigsRef.current.length > 0) return refundTxSigsRef.current;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return refundTxSigsRef.current;
+  }
+
   async function recordMatchOnChain() {
-    if (!matchResult || !profile) return;
-    if (matchMode === "multiplayer" && matchResult.winnerId !== player.id) {
-      if (stakeAmount > 0) {
-        toast.error("Better luck next time! Your stake has been lost.");
+    if (!matchResult) return;
+    const isWinner = matchResult.winnerId === player.id;
+    const fp = depositTxSignatures?.[0] || `match-${player.id}-${opponent.id}-${stakeAmount}-${startTime}`;
+    const recordedKey = `keysocial-recorded-${fp}`;
+
+    if (typeof sessionStorage !== "undefined") {
+      if (sessionStorage.getItem(recordedKey)) {
+        if (stakeAmount > 0 && isWinner) {
+          const payoutFp = depositTxSignatures?.[0] || `payout-${player.id}-${opponent.id}-${stakeAmount}-${startTime}`;
+          const payoutStored = sessionStorage.getItem(`keysocial-payout-${payoutFp}`);
+          if (payoutStored) {
+            try {
+              const { txSignature } = JSON.parse(payoutStored);
+              if (txSignature) setPayoutTxSig(txSignature);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        return;
       }
-      return;
+      sessionStorage.setItem(recordedKey, "1");
+    }
+
+    if (matchMode === "multiplayer" && stakeAmount > 0 && !isWinner) {
+      toast.error("Better luck next time! Your stake has been lost.");
     }
 
     try {
       let payoutTxSignature: string | undefined;
-      if (stakeAmount > 0) {
+      if (stakeAmount > 0 && isWinner) {
         const sig = await claimPayout();
         if (sig) payoutTxSignature = sig;
       }
+      if (stakeAmount > 0 && !isWinner) {
+        // Loser fallback record waits briefly for winner payout broadcast
+        // so profile match history can include payout TX consistently.
+        const sig = await waitForPayoutSignature();
+        if (sig) payoutTxSignature = sig;
+        await waitForRefundSignatures();
+      }
 
-      await recordMatchResult(profile.id || profile.username, {
+      let authorProfile = profile;
+      if (!authorProfile) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 300));
+          authorProfile = useUserStore.getState().profile;
+          if (authorProfile) break;
+        }
+      }
+      if (!authorProfile) {
+        toast.info("Winnings processed. Create a profile to publish match history onchain.");
+        return;
+      }
+
+      await recordMatchResult(authorProfile.id || authorProfile.username, {
         ...matchResult,
         matchType: stakeAmount > 0 ? "ranked" : "practice",
         stakeAmount,
+        network: "devnet",
         payoutTxSignature,
+        depositTxSignatures,
+        refundTxSignatures: refundTxSigsRef.current,
       });
-      toast.success("Match result recorded onchain!");
-      toast("Result posted to your feed!", { icon: "📣" });
+      toast.success("Match recorded onchain!");
     } catch (err) {
       console.error("Failed to record match:", err);
+      toast.error("Could not save match to profile. Please try again.");
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem(recordedKey);
+      }
     }
   }
 
@@ -296,7 +490,23 @@ function GamePageInner() {
     didBroadcastFinish.current = false;
 
     channel.on("broadcast", { event: "room_event" }, ({ payload }) => {
-      const evt = payload as { type: string; payload: ProgressPayload | { playerId: string } };
+      const evt = payload as {
+        type: string;
+        payload:
+          | ProgressPayload
+          | { playerId: string }
+          | {
+              txSignature: string;
+              winnerId: string;
+              winnerUsername: string;
+              payoutSOL?: number;
+            }
+          | {
+              txSignature: string;
+              walletAddress?: string;
+              amountSOL?: number;
+            };
+      };
       if (evt.type === "progress") {
         const data = evt.payload as ProgressPayload;
         const store = useGameStore.getState();
@@ -329,6 +539,53 @@ function GamePageInner() {
           store.endGame();
         }
       }
+      if (evt.type === "payout_confirmed") {
+        const data = evt.payload as {
+          txSignature: string;
+          winnerId: string;
+          winnerUsername: string;
+          payoutSOL?: number;
+        };
+        if (data.txSignature) {
+          setPayoutTxSig((prev) => prev || data.txSignature);
+          const isMeWinner = data.winnerId === useGameStore.getState().player.id;
+          if (!isMeWinner) {
+            toast.success(
+              `${data.winnerUsername || "Winner"} received ${
+                data.payoutSOL ? `${data.payoutSOL} SOL` : "winnings"
+              }`,
+              {
+                description: `TX: ${data.txSignature.slice(0, 16)}...`,
+                duration: 10000,
+                action: {
+                  label: "View TX",
+                  onClick: () =>
+                    window.open(`https://solscan.io/tx/${data.txSignature}${solscanSuffix}`, "_blank"),
+                },
+              }
+            );
+          }
+        }
+      }
+      if (evt.type === "refund_confirmed") {
+        const data = evt.payload as {
+          txSignature: string;
+          walletAddress?: string;
+          amountSOL?: number;
+        };
+        if (data.txSignature) {
+          addRefundTxSig(data.txSignature);
+          toast.warning(`Refund processed${data.amountSOL ? ` (${data.amountSOL} SOL)` : ""}`, {
+            description: `TX: ${data.txSignature.slice(0, 16)}...`,
+            duration: 10000,
+            action: {
+              label: "View TX",
+              onClick: () =>
+                window.open(`https://solscan.io/tx/${data.txSignature}${solscanSuffix}`, "_blank"),
+            },
+          });
+        }
+      }
     });
 
     setShowSetup(false);
@@ -344,6 +601,7 @@ function GamePageInner() {
     setShowSetup(true);
     setLastResult(null);
     setPayoutTxSig(null);
+    setRefundTxSigs([]);
   }
 
   function handleShare() {
@@ -393,7 +651,9 @@ function GamePageInner() {
               player={player}
               opponent={opponent}
               isPlayerWinner={matchResult.winnerId === player.id}
+              depositTxSignatures={depositTxSignatures}
               payoutTxSignature={payoutTxSig}
+              refundTxSignatures={refundTxSigs}
               onPlayAgain={handlePlayAgain}
               onShare={handleShare}
             />
@@ -490,7 +750,7 @@ function GamePageInner() {
           />
           <div className="mt-4 flex justify-between items-center text-xs text-gray-500 font-mono">
             <div className="flex items-center gap-2">
-              <span className={cn("w-2 h-2 rounded-full", isMainnet ? "bg-green-500" : "bg-yellow-500")} />
+              <span className="w-2 h-2 rounded-full bg-yellow-500" />
               {networkLabel}
             </div>
             <div className="flex items-center gap-4">

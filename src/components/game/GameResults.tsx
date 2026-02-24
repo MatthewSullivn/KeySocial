@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { MatchResult, PlayerState } from "@/lib/game-engine";
+import { Connection } from "@solana/web3.js";
 import Link from "next/link";
 import { useNetwork } from "@/providers/NetworkProvider";
 import { cn } from "@/lib/utils";
@@ -10,7 +12,9 @@ interface GameResultsProps {
   player: PlayerState;
   opponent: PlayerState;
   isPlayerWinner: boolean;
+  depositTxSignatures?: string[];
   payoutTxSignature?: string | null;
+  refundTxSignatures?: string[];
   onPlayAgain: () => void;
   onShare: () => void;
 }
@@ -20,12 +24,17 @@ export default function GameResults({
   player,
   opponent,
   isPlayerWinner,
+  depositTxSignatures = [],
   payoutTxSignature,
+  refundTxSignatures = [],
   onPlayAgain,
   onShare,
 }: GameResultsProps) {
-  const { solscanSuffix, networkLabel, network } = useNetwork();
-  const isMainnet = network === "mainnet-beta";
+  const { solscanSuffix, networkLabel, rpcUrl } = useNetwork();
+  const uniqueDepositSigs = Array.from(new Set(depositTxSignatures.filter(Boolean)));
+  const uniqueRefundSigs = Array.from(new Set(refundTxSignatures.filter(Boolean)));
+  const winnerPayoutSOL =
+    result.stakeAmount > 0 ? Number((result.stakeAmount * 2).toFixed(3)) : 0;
   return (
     <div className="max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Result Banner */}
@@ -111,12 +120,7 @@ export default function GameResults({
             >
               {isPlayerWinner ? "+" : "-"}{result.stakeAmount} SOL
             </span>
-            <span className={cn(
-              "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-              isMainnet
-                ? "bg-green-100 text-green-700"
-                : "bg-yellow-100 text-yellow-700"
-            )}>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
               {networkLabel}
             </span>
           </div>
@@ -131,6 +135,79 @@ export default function GameResults({
               View Payout TX on Solscan
             </a>
           )}
+        </div>
+      )}
+
+      {result.stakeAmount > 0 && (uniqueDepositSigs.length > 0 || !!payoutTxSignature || uniqueRefundSigs.length > 0) && (
+        <div className="mb-8 bg-white rounded-xl border border-gray-200 p-4">
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
+            Transaction History ({uniqueDepositSigs.length + (payoutTxSignature ? 1 : 0) + uniqueRefundSigs.length})
+          </div>
+          <div className="space-y-2">
+            {uniqueDepositSigs.map((sig, idx) => {
+              const label = `Stake Deposit ${idx + 1} (${result.stakeAmount} SOL)`;
+              return (
+                <a
+                  key={`${sig}-${idx}`}
+                  href={`https://solscan.io/tx/${sig}${solscanSuffix}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-gray-700 flex flex-col">
+                    <span className="font-semibold text-gray-500 mr-1">{label}:</span>
+                    <span className="font-mono">{sig.slice(0, 10)}...</span>
+                    <TxTimestamp sig={sig} rpcUrl={rpcUrl} />
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-purple-600 font-medium">
+                    View
+                    <span className="material-icons text-sm">open_in_new</span>
+                  </span>
+                </a>
+              );
+            })}
+            {payoutTxSignature && (
+              <a
+                href={`https://solscan.io/tx/${payoutTxSignature}${solscanSuffix}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm hover:bg-green-100/70 transition-colors"
+              >
+                <span className="text-gray-700 flex flex-col">
+                  <span className="font-semibold text-green-700 mr-1">
+                    Winner Payout ({winnerPayoutSOL} SOL):
+                  </span>
+                  <span className="font-mono">{payoutTxSignature.slice(0, 10)}...</span>
+                  <TxTimestamp sig={payoutTxSignature} rpcUrl={rpcUrl} />
+                </span>
+                <span className="inline-flex items-center gap-1 text-green-700 font-medium">
+                  View
+                  <span className="material-icons text-sm">open_in_new</span>
+                </span>
+              </a>
+            )}
+            {uniqueRefundSigs.map((sig, idx) => (
+              <a
+                key={`refund-${sig}-${idx}`}
+                href={`https://solscan.io/tx/${sig}${solscanSuffix}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm hover:bg-orange-100/70 transition-colors"
+              >
+                <span className="text-gray-700 flex flex-col">
+                  <span className="font-semibold text-orange-700 mr-1">
+                    Refund {uniqueRefundSigs.length > 1 ? `${idx + 1}` : ""}:
+                  </span>
+                  <span className="font-mono">{sig.slice(0, 10)}...</span>
+                  <TxTimestamp sig={sig} rpcUrl={rpcUrl} />
+                </span>
+                <span className="inline-flex items-center gap-1 text-orange-700 font-medium">
+                  View
+                  <span className="material-icons text-sm">open_in_new</span>
+                </span>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
@@ -181,4 +258,53 @@ function StatRow({
       </div>
     </div>
   );
+}
+
+function TxTimestamp({ sig, rpcUrl }: { sig: string; rpcUrl: string }) {
+  const [text, setText] = useState<string>("Loading time...");
+
+  useEffect(() => {
+    let cancelled = false;
+    const connection = new Connection(rpcUrl, "confirmed");
+
+    async function load() {
+      try {
+        const statusRes = await connection.getSignatureStatuses([sig], {
+          searchTransactionHistory: true,
+        });
+        const slot = statusRes.value[0]?.slot;
+        if (!slot) {
+          if (!cancelled) setText("Time unavailable");
+          return;
+        }
+        const blockTime = await connection.getBlockTime(slot);
+        if (!blockTime) {
+          if (!cancelled) setText("Time unavailable");
+          return;
+        }
+        if (!cancelled) {
+          const dt = new Date(blockTime * 1000);
+          setText(
+            `${dt.toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })} · ${dt.toLocaleTimeString(undefined, {
+              hour: "numeric",
+              minute: "2-digit",
+            })}`
+          );
+        }
+      } catch {
+        if (!cancelled) setText("Time unavailable");
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [sig, rpcUrl]);
+
+  return <span className="text-[10px] text-gray-400 mt-0.5">{text}</span>;
 }

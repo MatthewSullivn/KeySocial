@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { Connection } from "@solana/web3.js";
 import { useUserStore } from "@/store/user-store";
 import {
   getProfile,
@@ -15,6 +16,7 @@ import {
   getContents,
   updateProfile,
   createChallengePost,
+  isUsernameAvailableForWallet,
   type TapestryProfile,
   type TapestryContent,
 } from "@/lib/tapestry";
@@ -32,8 +34,7 @@ export default function ProfilePage() {
   const { profile: myProfile } = useUserStore();
   const connectedWallet = publicKey?.toBase58() || "";
   const [challengeLoading, setChallengeLoading] = useState(false);
-  const { solscanSuffix, networkLabel, network } = useNetwork();
-  const isMainnet = network === "mainnet-beta";
+  const { solscanSuffix, rpcUrl } = useNetwork();
 
   const [profile, setProfile] = useState<TapestryProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +45,8 @@ export default function ProfilePage() {
   const [followingCount, setFollowingCount] = useState(0);
   const [followersList, setFollowersList] = useState<TapestryProfile[]>([]);
   const [followingList, setFollowingList] = useState<TapestryProfile[]>([]);
+  const [followersLoading, setFollowersLoading] = useState(false);
+  const [followingLoading, setFollowingLoading] = useState(false);
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -51,45 +54,105 @@ export default function ProfilePage() {
   const [editBio, setEditBio] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [showAllMatches, setShowAllMatches] = useState(false);
+  const [expandedTxMatchId, setExpandedTxMatchId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     wins: 0,
     losses: 0,
     bestWPM: 0,
     avgAccuracy: 0,
     totalEarnings: 0,
+    devnetEarnings: 0,
   });
 
   const isOwnProfile = myProfile?.username === username || myProfile?.id === username;
 
-  useEffect(() => { loadProfile(); }, [username]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function loadProfile() {
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    try {
-      const p = await getProfile(username);
-      setProfile(p);
-      if (!p) return;
+    (async () => {
+      try {
+        const p = await getProfile(username);
+        if (cancelled) return;
+        setProfile(p);
+        if (!p) return;
 
-      const [followers, following] = await Promise.all([
-        getFollowers(p.id || p.username, 50, 0),
-        getFollowing(p.id || p.username, 50, 0),
-      ]);
-      setFollowerCount(p.socialCounts?.followers || followers.length);
-      setFollowingCount(p.socialCounts?.following || following.length);
-      setFollowersList(followers);
-      setFollowingList(following);
+        setFollowerCount(p.socialCounts?.followers || 0);
+        setFollowingCount(p.socialCounts?.following || 0);
+        setFollowersList([]);
+        setFollowingList([]);
 
-      if (myProfile && !isOwnProfile) {
-        const followingState = await checkFollowStatus(myProfile.id || myProfile.username, p.id || p.username);
-        setIsFollowing(followingState);
+        const profileId = p.id || p.username;
+        const [followingState, contents] = await Promise.all([
+          myProfile && !isOwnProfile
+            ? checkFollowStatus(myProfile.id || myProfile.username, profileId)
+            : Promise.resolve(false),
+          getContents(50, 0),
+        ]);
+        if (cancelled) return;
+        if (myProfile && !isOwnProfile) {
+          setIsFollowing(followingState);
+        }
+        const matchProfile = (pid: string) => pid === p.id || pid === p.username;
+        const allMatches = contents.filter((c) => {
+          const props = c.properties || {};
+          return props.type === "match_result" && (matchProfile(props.winnerId || "") || matchProfile(props.loserId || ""));
+        });
+
+        const deduped: TapestryContent[] = [];
+        const seen = new Set<string>();
+        for (const m of allMatches) {
+          const pr = m.properties || {};
+          const ts = m.createdAt ? Math.floor(new Date(m.createdAt).getTime() / 5000) : "";
+          const key = `${pr.winnerId}-${pr.loserId}-${pr.winnerWPM}-${pr.loserWPM}-${ts}`;
+          if (!seen.has(key)) { seen.add(key); deduped.push(m); }
+        }
+        deduped.sort((a, b) => {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tb - ta;
+        });
+        if (cancelled) return;
+        setMatchHistory(deduped);
+
+        let wins = 0, losses = 0, bestWPM = 0, totalAcc = 0, totalEarnings = 0, devnetEarnings = 0;
+        for (const m of deduped) {
+          const props = m.properties || {};
+          const isWinner = matchProfile(props.winnerId || "");
+          const stake = parseFloat(props.stakeAmount || "0");
+          if (isWinner) {
+            wins++;
+            bestWPM = Math.max(bestWPM, parseInt(props.winnerWPM || "0"));
+            totalAcc += parseInt(props.winnerAccuracy || "0");
+            totalEarnings += stake;
+            if (stake > 0) devnetEarnings += stake;
+          } else {
+            losses++;
+            bestWPM = Math.max(bestWPM, parseInt(props.loserWPM || "0"));
+            totalAcc += parseInt(props.loserAccuracy || "0");
+            totalEarnings -= stake;
+            if (stake > 0) devnetEarnings -= stake;
+          }
+        }
+        if (cancelled) return;
+        setStats({ wins, losses, bestWPM, avgAccuracy: deduped.length > 0 ? Math.round(totalAcc / deduped.length) : 0, totalEarnings, devnetEarnings });
+      } catch (err) {
+        console.error("Failed to load profile:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    })();
+    return () => { cancelled = true; };
+  }, [username]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const refetchMatches = useCallback(async () => {
+    if (!profile) return;
+    try {
       const contents = await getContents(50, 0);
+      const matchProfile = (pid: string) => pid === profile.id || pid === profile.username;
       const allMatches = contents.filter((c) => {
         const props = c.properties || {};
-        return props.type === "match_result" && (props.winnerId === (p.id || p.username) || props.loserId === (p.id || p.username));
+        return props.type === "match_result" && (matchProfile(props.winnerId || "") || matchProfile(props.loserId || ""));
       });
-
       const deduped: TapestryContent[] = [];
       const seen = new Set<string>();
       for (const m of allMatches) {
@@ -98,29 +161,79 @@ export default function ProfilePage() {
         const key = `${pr.winnerId}-${pr.loserId}-${pr.winnerWPM}-${pr.loserWPM}-${ts}`;
         if (!seen.has(key)) { seen.add(key); deduped.push(m); }
       }
+      deduped.sort((a, b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      });
       setMatchHistory(deduped);
-
-      let wins = 0, losses = 0, bestWPM = 0, totalAcc = 0, totalEarnings = 0;
+      let wins = 0, losses = 0, bestWPM = 0, totalAcc = 0, totalEarnings = 0, devnetEarnings = 0;
       for (const m of deduped) {
         const props = m.properties || {};
-        const isWinner = props.winnerId === (p.id || p.username);
+        const isWinner = matchProfile(props.winnerId || "");
+        const stake = parseFloat(props.stakeAmount || "0");
         if (isWinner) {
-          wins++;
-          bestWPM = Math.max(bestWPM, parseInt(props.winnerWPM || "0"));
+          wins++; bestWPM = Math.max(bestWPM, parseInt(props.winnerWPM || "0"));
           totalAcc += parseInt(props.winnerAccuracy || "0");
-          totalEarnings += parseFloat(props.stakeAmount || "0");
+          totalEarnings += stake;
+          if (stake > 0) devnetEarnings += stake;
         } else {
-          losses++;
-          bestWPM = Math.max(bestWPM, parseInt(props.loserWPM || "0"));
+          losses++; bestWPM = Math.max(bestWPM, parseInt(props.loserWPM || "0"));
           totalAcc += parseInt(props.loserAccuracy || "0");
-          totalEarnings -= parseFloat(props.stakeAmount || "0");
+          totalEarnings -= stake;
+          if (stake > 0) devnetEarnings -= stake;
         }
       }
-      setStats({ wins, losses, bestWPM, avgAccuracy: deduped.length > 0 ? Math.round(totalAcc / deduped.length) : 0, totalEarnings });
+      setStats((s) => ({ ...s, wins, losses, bestWPM, avgAccuracy: deduped.length > 0 ? Math.round(totalAcc / deduped.length) : 0, totalEarnings, devnetEarnings }));
+    } catch { /* ignore */ }
+  }, [profile]);
+
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible" && profile) refetchMatches(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [profile, refetchMatches]);
+
+  // Refetch after a short delay when viewing own profile (catches matches recorded after navigating from game)
+  useEffect(() => {
+    if (!isOwnProfile || !profile) return;
+    const t = setTimeout(refetchMatches, 2500);
+    return () => clearTimeout(t);
+  }, [profile?.id, isOwnProfile, refetchMatches]);
+
+  async function openFollowersModal() {
+    setShowFollowers(true);
+    setShowFollowing(false);
+    if (!profile || followersList.length > 0 || followersLoading) return;
+    setFollowersLoading(true);
+    try {
+      const followers = await getFollowers(profile.id || profile.username, 50, 0);
+      setFollowersList(followers);
+      if (!profile.socialCounts?.followers) {
+        setFollowerCount(followers.length);
+      }
     } catch (err) {
-      console.error("Failed to load profile:", err);
+      console.error("Failed to load followers:", err);
     } finally {
-      setLoading(false);
+      setFollowersLoading(false);
+    }
+  }
+
+  async function openFollowingModal() {
+    setShowFollowing(true);
+    setShowFollowers(false);
+    if (!profile || followingList.length > 0 || followingLoading) return;
+    setFollowingLoading(true);
+    try {
+      const following = await getFollowing(profile.id || profile.username, 50, 0);
+      setFollowingList(following);
+      if (!profile.socialCounts?.following) {
+        setFollowingCount(following.length);
+      }
+    } catch (err) {
+      console.error("Failed to load following:", err);
+    } finally {
+      setFollowingLoading(false);
     }
   }
 
@@ -180,16 +293,22 @@ export default function ProfilePage() {
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
-    if (!profile || !myProfile || !isOwnProfile) return;
+    if (!profile || !myProfile || !isOwnProfile || !connectedWallet) return;
     const pid = profile.id || profile.username;
-    if (!editUsername.trim()) {
+    const newUsername = editUsername.trim();
+    if (!newUsername) {
       toast.error("Username is required");
+      return;
+    }
+    const check = await isUsernameAvailableForWallet(connectedWallet, newUsername);
+    if (!check.available) {
+      toast.error(check.error || "Username is already taken");
       return;
     }
     setEditSaving(true);
     try {
       const updated = await updateProfile(pid, {
-        username: editUsername.trim(),
+        username: newUsername.toLowerCase(),
         bio: editBio.trim() || undefined,
       });
       setProfile(updated);
@@ -209,7 +328,7 @@ export default function ProfilePage() {
         <AppHeader />
         <div className="flex-1 flex items-center justify-center min-h-[50vh]">
           <div className="text-gray-500 flex items-center gap-2">
-            <span className="material-icons animate-spin">progress_activity</span>
+            <span className="material-symbols-outlined text-base animate-spin flex-shrink-0 inline-flex leading-none">progress_activity</span>
             Loading profile…
           </div>
         </div>
@@ -239,7 +358,7 @@ export default function ProfilePage() {
 
   const totalMatches = stats.wins + stats.losses;
   const winRate = totalMatches > 0 ? Math.round((stats.wins / totalMatches) * 1000) / 10 : 0;
-  const meId = profile.id || profile.username;
+  const isMyWin = (winnerId: string) => winnerId === profile?.id || winnerId === profile?.username;
   const visibleMatches = showAllMatches ? matchHistory : matchHistory.slice(0, 10);
 
   return (
@@ -279,7 +398,7 @@ export default function ProfilePage() {
                   <div className="mt-4 flex flex-wrap gap-3 text-sm">
                     <button
                       type="button"
-                      onClick={() => { setShowFollowers(true); setShowFollowing(false); }}
+                      onClick={openFollowersModal}
                       className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-100 transition-colors cursor-pointer"
                     >
                       <span className="material-icons-outlined text-base text-gray-500">groups</span>
@@ -287,7 +406,7 @@ export default function ProfilePage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setShowFollowing(true); setShowFollowers(false); }}
+                      onClick={openFollowingModal}
                       className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-100 transition-colors cursor-pointer"
                     >
                       <span className="material-icons-outlined text-base text-gray-500">group_add</span>
@@ -326,20 +445,20 @@ export default function ProfilePage() {
                         {isFollowing ? "Unfollow" : "Follow"}
                       </button>
                     ) : null}
-                    <button
+                    {!isOwnProfile && <button
                       onClick={handleChallenge}
                       disabled={challengeLoading || !myProfile}
                       className="px-3 py-2 rounded-lg font-bold text-sm bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 w-fit"
                     >
                       {challengeLoading ? (
-                        <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Sending…</>
+                        <><span className="material-symbols-outlined text-sm animate-spin flex-shrink-0 inline-flex leading-none">progress_activity</span> Sending…</>
                       ) : (
                         <>
                           <span className="material-symbols-outlined text-lg">swords</span>
                           Challenge
                         </>
                       )}
-                    </button>
+                    </button>}
                   </div>
                 </div>
               </div>
@@ -395,7 +514,7 @@ export default function ProfilePage() {
                     disabled={editSaving}
                     className="flex-1 py-2.5 rounded-lg bg-purple-500 text-white font-semibold hover:bg-purple-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {editSaving ? (<><span className="material-icons animate-spin text-lg">progress_activity</span> Saving…</>) : "Save"}
+                    {editSaving ? (<><span className="material-symbols-outlined text-lg animate-spin flex-shrink-0 inline-flex leading-none">progress_activity</span> Saving…</>) : "Save"}
                   </button>
                 </div>
               </form>
@@ -417,7 +536,9 @@ export default function ProfilePage() {
                 </button>
               </div>
               <div className="overflow-y-auto flex-1 p-4">
-                {(showFollowers ? followersList : followingList).length === 0 ? (
+                {(showFollowers && followersLoading) || (showFollowing && followingLoading) ? (
+                  <p className="text-center text-gray-500 py-8">Loading...</p>
+                ) : (showFollowers ? followersList : followingList).length === 0 ? (
                   <p className="text-center text-gray-500 py-8">
                     {showFollowers ? "No followers yet" : "Not following anyone yet"}
                   </p>
@@ -448,11 +569,11 @@ export default function ProfilePage() {
         )}
 
         {/* Performance Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
           <MetricCard icon="emoji_events" label="Total Wins" value={String(stats.wins)} iconColor="text-yellow-500" iconBg="bg-yellow-50" />
           <MetricCard icon="pie_chart" label="Win Rate" value={`${winRate}%`} iconColor="text-purple-500" iconBg="bg-purple-50" />
           <MetricCard icon="speed" label="Peak Speed" value={`${stats.bestWPM} WPM`} iconColor="text-blue-500" iconBg="bg-blue-50" />
-          <MetricCard icon="payments" label="Earnings" value={`${stats.totalEarnings >= 0 ? "+" : ""}${stats.totalEarnings.toFixed(2)} SOL`} iconColor="text-green-600" iconBg="bg-green-50" />
+          <MetricCard icon="payments" label="Earnings" value={`${stats.devnetEarnings >= 0 ? "+" : ""}${stats.devnetEarnings.toFixed(2)} SOL`} iconColor="text-green-600" iconBg="bg-green-50" />
         </div>
 
         {/* Match Log */}
@@ -486,12 +607,37 @@ export default function ProfilePage() {
                   <tbody className="divide-y divide-gray-100">
                     {visibleMatches.map((m) => {
                       const props = m.properties || {};
-                      const isWinner = props.winnerId === meId;
+                      const isWinner = isMyWin(props.winnerId || "");
                       const opp = isWinner ? props.loserUsername : props.winnerUsername;
                       const wpm = isWinner ? props.winnerWPM : props.loserWPM;
                       const acc = isWinner ? props.winnerAccuracy : props.loserAccuracy;
+                      const stakeAmountNum = parseFloat(props.stakeAmount || "0");
+                      const isStaked = stakeAmountNum > 0;
+                      const matchNetworkLabel = "Devnet";
+                      const matchId = m.id || `${props.winnerId}-${props.loserId}-${m.createdAt || ""}`;
+                      const isExpanded = expandedTxMatchId === matchId;
+
+                      const rawDepositSigs = props.depositTxSignatures
+                        ? props.depositTxSignatures.split(",").map((s: string) => s.trim()).filter(Boolean)
+                        : [];
+                      const rawRefundSigs = props.refundTxSignatures
+                        ? props.refundTxSignatures.split(",").map((s: string) => s.trim()).filter(Boolean)
+                        : [];
+                      const depositSigs = Array.from(new Set(rawDepositSigs));
+                      const refundSigs = Array.from(new Set(rawRefundSigs));
+                      const payoutSig = props.payoutTxSignature;
+                      const allTxs: { label: string; sig: string }[] = [];
+                      depositSigs.forEach((sig, i) =>
+                        allTxs.push({ label: `Deposit${depositSigs.length > 1 ? ` ${i + 1}` : ""}`, sig })
+                      );
+                      if (payoutSig) allTxs.push({ label: "Payout", sig: payoutSig });
+                      refundSigs.forEach((sig, i) =>
+                        allTxs.push({ label: `Refund${refundSigs.length > 1 ? ` ${i + 1}` : ""}`, sig })
+                      );
+
                       return (
-                        <tr key={m.id} className="hover:bg-gray-50 transition-colors">
+                        <Fragment key={matchId}>
+                        <tr key={`${matchId}-main`} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <span className={`material-icons text-lg ${isWinner ? "text-green-600" : "text-red-500"}`}>
@@ -504,7 +650,7 @@ export default function ProfilePage() {
                           </td>
                           <td className="px-6 py-4">
                             {opp ? (
-                              opp === "KeyBot" || opp.startsWith("ai-") ? (
+                              opp === "KeyBot" || opp === "Guest" || opp.startsWith("ai-") ? (
                                 <span className="text-gray-500">{opp}</span>
                               ) : (
                                 <Link href={`/profile/${opp}`} className="text-gray-900 font-medium hover:text-purple-600 transition-colors">@{opp}</Link>
@@ -518,40 +664,83 @@ export default function ProfilePage() {
                             {m.createdAt ? `${new Date(m.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${new Date(m.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : "—"}
                           </td>
                           <td className="px-6 py-4 text-right font-mono text-gray-700">
-                            {props.stakeAmount && parseFloat(props.stakeAmount) > 0 ? (
+                            {isStaked ? (
                               <div className="flex items-center justify-end gap-1.5">
                                 <span className={isWinner ? "text-green-600" : "text-red-500"}>
                                   {isWinner ? "+" : "−"}{props.stakeAmount} SOL
                                 </span>
-                                <span className={cn(
-                                  "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                                  isMainnet
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-yellow-100 text-yellow-700"
-                                )}>
-                                  {networkLabel}
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                  {matchNetworkLabel}
                                 </span>
                               </div>
                             ) : "Free"}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {props.payoutTxSignature ? (
-                              <a
-                                href={`https://solscan.io/tx/${props.payoutTxSignature}${solscanSuffix}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs font-medium text-purple-500 hover:text-purple-700 transition-colors"
+                            {isStaked ? (
+                              <button
+                                onClick={() => setExpandedTxMatchId(isExpanded ? null : matchId)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors"
                               >
-                                {props.payoutTxSignature.slice(0, 6)}...
-                                <span className="material-icons text-[12px]">open_in_new</span>
-                              </a>
-                            ) : props.stakeAmount && parseFloat(props.stakeAmount) > 0 ? (
-                              <span className="text-xs text-gray-400">—</span>
+                                <span className="material-icons text-[14px]">
+                                  {isExpanded ? "expand_less" : "expand_more"}
+                                </span>
+                                {allTxs.length > 0 ? `${allTxs.length} TX` : "Show TX"}
+                              </button>
                             ) : (
                               <span className="text-xs text-gray-300">—</span>
                             )}
                           </td>
                         </tr>
+                        {isStaked && (
+                          <tr key={`${matchId}-tx`}>
+                            <td colSpan={6} className="px-6 pb-4 pt-0">
+                              <div className="border border-gray-100 rounded-lg bg-gray-50/70">
+                                <button
+                                  onClick={() => setExpandedTxMatchId(isExpanded ? null : matchId)}
+                                  className="w-full flex items-center justify-between px-3 py-2 text-left text-xs font-bold uppercase tracking-wide text-gray-500 hover:bg-gray-100/80 transition-colors rounded-lg"
+                                >
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="material-icons text-[14px]">
+                                      {isExpanded ? "keyboard_arrow_down" : "keyboard_arrow_right"}
+                                    </span>
+                                    Stake Transactions
+                                  </span>
+                                  <span>{allTxs.length}</span>
+                                </button>
+                                {isExpanded && (
+                                  <div className="px-3 pb-3 space-y-1">
+                                    {allTxs.length > 0 ? (
+                                      allTxs.map((tx) => (
+                                        <a
+                                          key={`${matchId}-${tx.label}-${tx.sig}`}
+                                          href={`https://solscan.io/tx/${tx.sig}${solscanSuffix}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs hover:bg-gray-50 transition-colors"
+                                        >
+                                          <span className="text-gray-700 flex flex-col">
+                                            <span className="font-semibold text-gray-500 mr-1">{tx.label}:</span>
+                                            <span className="font-mono">{tx.sig.slice(0, 10)}...</span>
+                                            <TxTimestamp sig={tx.sig} rpcUrl={rpcUrl} />
+                                          </span>
+                                          <span className="inline-flex items-center gap-1 text-purple-600 font-medium">
+                                            View
+                                            <span className="material-icons text-[12px]">open_in_new</span>
+                                          </span>
+                                        </a>
+                                      ))
+                                    ) : (
+                                      <div className="text-xs text-gray-400 px-1 py-1">
+                                        No transaction links were recorded for this staked match.
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -573,6 +762,55 @@ export default function ProfilePage() {
       </main>
     </div>
   );
+}
+
+function TxTimestamp({ sig, rpcUrl }: { sig: string; rpcUrl: string }) {
+  const [text, setText] = useState<string>("Loading time...");
+
+  useEffect(() => {
+    let cancelled = false;
+    const connection = new Connection(rpcUrl, "confirmed");
+
+    async function load() {
+      try {
+        const statusRes = await connection.getSignatureStatuses([sig], {
+          searchTransactionHistory: true,
+        });
+        const slot = statusRes.value[0]?.slot;
+        if (!slot) {
+          if (!cancelled) setText("Time unavailable");
+          return;
+        }
+        const blockTime = await connection.getBlockTime(slot);
+        if (!blockTime) {
+          if (!cancelled) setText("Time unavailable");
+          return;
+        }
+        if (!cancelled) {
+          const dt = new Date(blockTime * 1000);
+          setText(
+            `${dt.toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })} · ${dt.toLocaleTimeString(undefined, {
+              hour: "numeric",
+              minute: "2-digit",
+            })}`
+          );
+        }
+      } catch {
+        if (!cancelled) setText("Time unavailable");
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [sig, rpcUrl]);
+
+  return <span className="text-[10px] text-gray-400 mt-0.5">{text}</span>;
 }
 
 function MetricCard({ icon, label, value, iconColor, iconBg }: { icon: string; label: string; value: string; iconColor: string; iconBg: string }) {

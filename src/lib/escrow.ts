@@ -6,8 +6,6 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 
-export const PLATFORM_FEE = 0.05; // 5%
-
 const RPC_URL =
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
 
@@ -19,6 +17,38 @@ export function getEscrowPublicKey(): PublicKey {
 
 export function getConnection(rpcUrl?: string): Connection {
   return new Connection(rpcUrl || RPC_URL, "confirmed");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function waitForSignatureConfirmation(
+  connection: Connection,
+  signature: string,
+  commitment: "processed" | "confirmed" | "finalized" = "confirmed",
+  timeoutMs = 45_000
+): Promise<void> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const statusRes = await connection.getSignatureStatuses([signature]);
+    const status = statusRes.value[0];
+
+    if (status?.err) {
+      throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+    }
+
+    const level = status?.confirmationStatus;
+    const done =
+      (commitment === "processed" && !!status) ||
+      (commitment === "confirmed" && (level === "confirmed" || level === "finalized")) ||
+      (commitment === "finalized" && level === "finalized");
+
+    if (done) return;
+    await sleep(700);
+  }
+
+  throw new Error("Transaction confirmation timed out");
 }
 
 export async function createDepositTransaction(
