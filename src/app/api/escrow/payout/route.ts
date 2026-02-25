@@ -119,12 +119,26 @@ export async function POST(request: NextRequest) {
     const payoutSOL = totalPot;
     const payoutLamports = Math.round(payoutSOL * LAMPORTS_PER_SOL);
 
-    const balance = await connection.getBalance(escrowKeypair.publicKey);
+    // Retry balance check — deposits may still be confirming on-chain
+    const BALANCE_RETRIES = 8;
+    const BALANCE_RETRY_DELAY_MS = 2500;
+    let balance = 0;
+    for (let attempt = 0; attempt < BALANCE_RETRIES; attempt++) {
+      balance = await connection.getBalance(escrowKeypair.publicKey);
+      if (balance >= payoutLamports) break;
+      if (attempt < BALANCE_RETRIES - 1) {
+        console.log(
+          `Payout: escrow balance ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL < needed ${payoutSOL} SOL, ` +
+          `retrying in ${BALANCE_RETRY_DELAY_MS}ms (attempt ${attempt + 1}/${BALANCE_RETRIES})...`
+        );
+        await new Promise((r) => setTimeout(r, BALANCE_RETRY_DELAY_MS));
+      }
+    }
     if (balance < payoutLamports) {
       return NextResponse.json(
         {
           error: "Escrow has insufficient balance",
-          details: `Escrow has ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL, need ${payoutSOL} SOL. Deposits may not have confirmed yet.`,
+          details: `Escrow has ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL, need ${payoutSOL} SOL after ${BALANCE_RETRIES} retries. Deposits may not have confirmed yet.`,
         },
         { status: 402 }
       );

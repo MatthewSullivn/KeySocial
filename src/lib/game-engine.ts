@@ -141,7 +141,13 @@ export function processKeyPress(
 
   // ── Backspace ──
   if (pressedKey === "Backspace") {
-    if (updatedPlayer.currentWordProgress.length > 0) {
+    const currentIdx = updatedPlayer.currentWordProgress.length;
+    // If there's an incorrect marker at current position (wrong key was pressed
+    // but didn't advance), clear it first
+    if (currentIdx < currentWord.length && charStates[currentIdx] === "incorrect") {
+      charStates[currentIdx] = "untyped";
+    } else if (updatedPlayer.currentWordProgress.length > 0) {
+      // Otherwise remove the last correctly typed character
       const idx = updatedPlayer.currentWordProgress.length - 1;
       charStates[idx] = "untyped";
       updatedPlayer.currentWordProgress = updatedPlayer.currentWordProgress.slice(0, -1);
@@ -202,19 +208,20 @@ export function processKeyPress(
   if (isCorrect) {
     updatedPlayer.correctHits += 1;
     charStates[currentIdx] = "correct";
+    // Only advance on correct character
+    updatedPlayer.currentWordProgress += pressedKey;
+
+    // If all characters typed correctly, wait for SPACE
+    if (updatedPlayer.currentWordProgress.length >= currentWord.length) {
+      updatedPlayer.awaitingSpace = true;
+    }
   } else {
     updatedPlayer.mistakes += 1;
     charStates[currentIdx] = "incorrect";
+    // Don't advance — player must type the correct character
   }
 
-  // Always move forward
-  updatedPlayer.currentWordProgress += pressedKey;
   updatedPlayer.charStates = charStates;
-
-  // If all characters typed, wait for SPACE
-  if (updatedPlayer.currentWordProgress.length >= currentWord.length) {
-    updatedPlayer.awaitingSpace = true;
-  }
 
   // Update stats
   updatedPlayer.progress = Math.min(100, (updatedPlayer.streak / trackLength) * 100);

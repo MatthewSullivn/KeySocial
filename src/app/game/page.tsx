@@ -321,63 +321,90 @@ function GamePageInner() {
         sessionStorage.setItem(storageKey, JSON.stringify({ idempotencyKey }));
       }
 
-      const res = await fetch("/api/escrow/payout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          winnerWallet: walletAddr,
-          stakeAmount,
-          matchContentId: "pending",
-          idempotencyKey,
-        }),
-      });
+      const PAYOUT_MAX_RETRIES = 3;
+      const PAYOUT_RETRY_DELAY_MS = 4000;
+      let lastError = "";
 
-      if (res.ok) {
-        const data = await res.json();
-        const winnings = (stakeAmount * 2).toFixed(3);
-        const sig = data.txSignature || null;
-        setPayoutTxSig(sig);
-        if (sig && typeof sessionStorage !== "undefined") {
-          sessionStorage.setItem(
-            getPayoutStorageKey(),
-            JSON.stringify({ txSignature: sig, idempotencyKey })
-          );
-        }
-        if (sig && mpChannelRef.current) {
-          mpChannelRef.current.send({
-            type: "broadcast",
-            event: "room_event",
-            payload: {
-              type: "payout_confirmed",
-              payload: {
-                txSignature: sig,
-                winnerId: player.id,
-                winnerUsername: player.username,
-                payoutSOL: Number(winnings),
-              },
-            },
-          });
-        }
-        toast.success(`Winnings deposited! +${winnings} SOL`, {
-          description: sig ? `TX: ${sig.slice(0, 16)}...` : undefined,
-          action: sig ? {
-            label: "View TX",
-            onClick: () => window.open(`https://solscan.io/tx/${sig}${solscanSuffix}`, "_blank"),
-          } : undefined,
-        });
-        return sig;
-      } else {
-        const text = await res.text();
-        let err: { error?: string; details?: string };
+      for (let attempt = 0; attempt < PAYOUT_MAX_RETRIES; attempt++) {
         try {
-          err = JSON.parse(text);
-        } catch {
-          err = { error: "Server error", details: text.slice(0, 200) || `${res.status} ${res.statusText}` };
+          const res = await fetch("/api/escrow/payout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              winnerWallet: walletAddr,
+              stakeAmount,
+              matchContentId: "pending",
+              idempotencyKey,
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const winnings = (stakeAmount * 2).toFixed(3);
+            const sig = data.txSignature || null;
+            setPayoutTxSig(sig);
+            if (sig && typeof sessionStorage !== "undefined") {
+              sessionStorage.setItem(
+                getPayoutStorageKey(),
+                JSON.stringify({ txSignature: sig, idempotencyKey })
+              );
+            }
+            if (sig && mpChannelRef.current) {
+              mpChannelRef.current.send({
+                type: "broadcast",
+                event: "room_event",
+                payload: {
+                  type: "payout_confirmed",
+                  payload: {
+                    txSignature: sig,
+                    winnerId: player.id,
+                    winnerUsername: player.username,
+                    payoutSOL: Number(winnings),
+                  },
+                },
+              });
+            }
+            toast.success(`Winnings deposited! +${winnings} SOL`, {
+              description: sig ? `TX: ${sig.slice(0, 16)}...` : undefined,
+              action: sig ? {
+                label: "View TX",
+                onClick: () => window.open(`https://solscan.io/tx/${sig}${solscanSuffix}`, "_blank"),
+              } : undefined,
+            });
+            return sig;
+          } else {
+            const text = await res.text();
+            let err: { error?: string; details?: string };
+            try {
+              err = JSON.parse(text);
+            } catch {
+              err = { error: "Server error", details: text.slice(0, 200) || `${res.status} ${res.statusText}` };
+            }
+            lastError = err.details || err.error || "Unknown error";
+
+            // Retry on 402 (insufficient balance — deposits may still be confirming)
+            // or 5xx server errors
+            if ((res.status === 402 || res.status >= 500) && attempt < PAYOUT_MAX_RETRIES - 1) {
+              console.log(`Payout attempt ${attempt + 1} failed (${res.status}): ${lastError}, retrying...`);
+              await new Promise((r) => setTimeout(r, PAYOUT_RETRY_DELAY_MS));
+              continue;
+            }
+          }
+        } catch (fetchErr) {
+          lastError = fetchErr instanceof Error ? fetchErr.message : "Request failed";
+          if (attempt < PAYOUT_MAX_RETRIES - 1) {
+            console.log(`Payout attempt ${attempt + 1} network error: ${lastError}, retrying...`);
+            await new Promise((r) => setTimeout(r, PAYOUT_RETRY_DELAY_MS));
+            continue;
+          }
         }
-        const reason = err.details || err.error || "Unknown error";
-        toast.error("Failed to claim winnings: " + reason);
-        await attemptSafetyRefund(reason);
+        // If we reach here on last attempt, break out
+        break;
       }
+
+      // All retries exhausted — attempt safety refund
+      toast.error("Failed to claim winnings: " + lastError);
+      await attemptSafetyRefund(lastError);
     } catch (err) {
       console.error("Payout claim error:", err);
       const reason = err instanceof Error ? err.message : "Request failed";
@@ -434,8 +461,9 @@ function GamePageInner() {
       toast.error("Better luck next time! Your stake has been lost.");
     }
 
+    // Step 1: Attempt payout (isolated so failures don't block match recording)
+    let payoutTxSignature: string | undefined;
     try {
-      let payoutTxSignature: string | undefined;
       if (stakeAmount > 0 && isWinner) {
         const sig = await claimPayout();
         if (sig) payoutTxSignature = sig;
@@ -447,10 +475,15 @@ function GamePageInner() {
         if (sig) payoutTxSignature = sig;
         await waitForRefundSignatures();
       }
+    } catch (payoutErr) {
+      console.error("Payout phase error (match recording will continue):", payoutErr);
+    }
 
+    // Step 2: Record match on-chain (always runs regardless of payout outcome)
+    try {
       let authorProfile = profile;
       if (!authorProfile) {
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 20; i++) {
           await new Promise((r) => setTimeout(r, 300));
           authorProfile = useUserStore.getState().profile;
           if (authorProfile) break;
