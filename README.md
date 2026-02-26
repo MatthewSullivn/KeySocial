@@ -1,211 +1,160 @@
 # KeySocial
 
-**Real-time, browser-based social typing game on Solana**
+Real-time, skill-based typing racing game on Solana. Race head-to-head, stake SOL, and climb on-chain leaderboards. Built for the Solana Hackathon with Tapestry Protocol integration.
 
-KeySocial is a competitive word typing racing game where players compete in head-to-head sprint duels. Built for the Solana Hackathon with Tapestry Protocol integration for onchain social features.
+## Overview
 
-## What is KeySocial?
+KeySocial combines fast-paced word typing with blockchain technology to create a competitive racing platform:
 
-KeySocial combines fast-paced word typing mechanics with blockchain technology to create a skill-based competitive racing platform:
-
-- **Fast Rounds**: 30-60 second matches for instant gratification
-- **Skill-Based**: Pure typing speed and accuracy - no luck involved
-- **Onchain Social**: Profiles, follows, and match history powered by Tapestry
-- **Multiple Difficulties**: From casual home-row typing to insane mode with symbols
-- **Social Competition**: Follow rivals, climb leaderboards, challenge friends
+- 30-60 second matches
+- Pure skill: typing speed and accuracy, no luck
+- On-chain profiles, follows, and match history via Tapestry
+- Optional SOL staking
+- Four difficulty levels and AI opponent for practice
 
 ## Features
 
-### Core Gameplay
-- **Head-to-head Racing**: Two players compete to type words fastest
-- **Word-based Typing**: Type complete words, not just single keys
-- **Graveyard System**: Too many mistakes = instant elimination
-- **Real-time Stats**: WPM, accuracy, word streak tracking
-- **AI Opponents**: Practice against adaptive bots
-- **4 Difficulty Levels**: From short 3-letter words to complex 14+ letter words
+### Gameplay
+- Head-to-head racing: two players race to type words fastest
+- Word-based typing with real-time WPM, accuracy, and streak tracking
+- AI opponents (KeyBot) for practice
+- Four difficulties: Casual, Ranked, Elite, Insane (short words to 14+ letter words)
 
-### Social Features (Tapestry Integration)
-- **Onchain Profiles**: Create and manage your racer identity
-- **Follow System**: Build your network of rivals and friends
-- **Match History**: Every race recorded onchain
-- **Global Leaderboard**: Compete for the top spot
-- **Ranking System**: Bronze > Silver > Gold > Platinum > Diamond > Legend
+### Social (Tapestry)
+- On-chain profiles linked to wallet
+- Follow/unfollow system for rivals and friends
+- Match history recorded on-chain with full stats
+- Global leaderboard from on-chain data
+- Ranking tiers: Bronze to Legend
+
+### Staking
+- Optional SOL stakes before multiplayer races
+- Escrow holds both deposits; winner takes all
+- Automatic refunds for losers and cancelled matches
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14 (App Router), React, TypeScript
-- **Styling**: Tailwind CSS with custom animations
-- **Blockchain**: Solana (Web3.js, Wallet Adapter)
-- **Social Layer**: Tapestry Protocol API
-- **Realtime**: Supabase Realtime (multiplayer)
-- **State Management**: Zustand
-- **UI Components**: Lucide Icons, Sonner (toasts)
+| Layer      | Tech                         |
+|-----------|------------------------------|
+| Frontend  | Next.js 14, React, TypeScript |
+| Styling   | Tailwind CSS                 |
+| Blockchain| Solana (Web3.js, Wallet Adapter) |
+| Social    | Tapestry Protocol API         |
+| Realtime | Supabase Realtime            |
+| State     | Zustand                      |
 
-## Installation
+## Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm
-- A Solana wallet (Phantom, Solflare, etc.)
+- Node.js 18+
+- Solana wallet (Phantom, Solflare, etc.)
 
 ### Setup
 
-1. **Clone the repository**
+1. Clone and install:
 ```bash
-git clone <your-repo-url>
+git clone <repo-url>
 cd KeySocial
-```
-
-2. **Install dependencies**
-```bash
 npm install
 ```
 
-3. **Environment variables**
-
-Create a `.env.local` file with:
-```env
-NEXT_PUBLIC_TAPESTRY_API_KEY=your_tapestry_api_key
-TAPESTRY_API_KEY=your_tapestry_api_key
+2. Create `.env.local` (see `.env.example` for reference):
+```
+NEXT_PUBLIC_TAPESTRY_API_KEY=
+TAPESTRY_API_KEY=
 NEXT_PUBLIC_TAPESTRY_API_URL=https://api.usetapestry.dev/api/v1
 NEXT_PUBLIC_APP_NAMESPACE=keysocial
 NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 NEXT_PUBLIC_SOLANA_NETWORK=devnet
-ESCROW_SECRET_KEY=your_escrow_keypair_base58
-NEXT_PUBLIC_ESCROW_PUBKEY=your_escrow_public_key
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+ESCROW_SECRET_KEY=
+NEXT_PUBLIC_ESCROW_PUBKEY=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-4. **Run the development server**
+3. Run:
 ```bash
 npm run dev
 ```
 
-5. **Open in browser**
-```
-http://localhost:3000
-```
+4. Open `http://localhost:3000`
 
 ## How to Play
 
-1. **Connect Wallet**: Connect your Solana wallet (Phantom, Solflare, etc.)
-2. **Create Profile**: Set up your racer profile (username, bio)
-3. **Choose Settings**: 
-   - Select difficulty (Easy, Ranked, Elite, Insane)
-   - Play against bots or create/join a multiplayer room
-4. **Race**: 
-   - Words appear on screen - type them as fast as possible
-   - Complete words move you forward
-   - Mistakes are highlighted but you keep going
-   - First to finish wins
-5. **Climb Ranks**: Win matches to climb the leaderboard
-
-## Project Structure
-
-```
-KeySocial/
-├── src/
-│   ├── app/                      # Next.js App Router pages
-│   │   ├── page.tsx             # Landing page
-│   │   ├── game/page.tsx        # Main game page
-│   │   ├── leaderboard/page.tsx # Global rankings
-│   │   ├── feed/page.tsx        # Social feed
-│   │   ├── profile/[username]/  # Profile pages
-│   │   └── create-profile/      # Profile creation
-│   ├── components/
-│   │   ├── game/                # Game UI components
-│   │   │   ├── GameSetup.tsx   # Game mode selection
-│   │   │   ├── KeyDisplay.tsx  # Typing display
-│   │   │   ├── GameResults.tsx # Post-match screen
-│   │   │   └── ...
-│   │   ├── feed/               # Feed components
-│   │   └── layout/
-│   │       └── AppHeader.tsx   # Navigation
-│   ├── lib/
-│   │   ├── tapestry.ts         # Tapestry API client
-│   │   ├── game-engine.ts      # Core game logic
-│   │   ├── multiplayer.ts      # Supabase Realtime rooms
-│   │   ├── escrow.ts           # Escrow helpers (optional)
-│   │   └── utils.ts            # Helpers
-│   ├── providers/
-│   │   ├── WalletProvider.tsx  # Solana wallet context
-│   │   └── ProfileProvider.tsx # User profile context
-│   └── store/
-│       ├── game-store.ts       # Game state (Zustand)
-│       └── user-store.ts       # User state (Zustand)
-├── public/                      # Static assets
-└── ...config files
-```
+1. Connect wallet and create a profile
+2. Choose mode: Bot (practice) or Multiplayer (create/join room)
+3. Select difficulty and optional stake
+4. Race: type words as fast as possible; first to finish wins
+5. Win matches to climb the leaderboard and grow your on-chain reputation
 
 ## Tapestry Integration
 
 KeySocial uses [Tapestry Protocol](https://docs.usetapestry.dev/) for all social features:
 
-- **Profiles**: `findOrCreateProfile()`, `getProfile()`, `updateProfile()`
-- **Social Graph**: `followProfile()`, `unfollowProfile()`, `getFollowers()`, `getFollowing()`
-- **Content**: `createContent()` for match results and posts, `getContents()` for history
-- **Likes & Comments**: Full engagement system for social interactions
+- **Profiles**: `findOrCreateProfile`, `getProfile`, `updateProfile`
+- **Social Graph**: `followProfile`, `unfollowProfile`, `getFollowers`, `getFollowing`
+- **Content**: Match results via `recordMatchResult` / `createContent` with `type: "match_result"`
+- **Leaderboard**: Aggregated from on-chain match data
 
-All data is stored onchain with Solana state compression via Merkle trees.
+Match content includes winner/loser IDs, WPM, accuracy, stake amount, and transaction signatures. Data is stored on-chain with Solana state compression.
 
 ## Game Mechanics
 
-### Difficulty Levels
+| Difficulty | Track | AI Target WPM |
+|------------|-------|---------------|
+| Easy (Casual)   | 20 words | 30  |
+| Medium (Ranked) | 25 words | 60  |
+| Hard (Elite)    | 30 words | 100 |
+| Insane          | 35 words | 130 |
 
-| Difficulty | Keys | Track Length | Key Interval |
-|------------|------|--------------|--------------|
-| **Easy (Casual)** | `asdfjkl;` | 30 | 2000ms |
-| **Medium (Ranked)** | `a-z` | 40 | 1500ms |
-| **Hard (Elite)** | `a-z, 0-9` | 50 | 1000ms |
-| **Insane** | `a-z, 0-9, symbols` | 60 | 700ms |
+- **WPM**: (correct characters / 5) / elapsed minutes
+- **Winner**: First player to 100% progress (complete all words)
 
-### Scoring
-- **WPM**: (Correct keys / 5) / elapsed minutes
-- **Accuracy**: (Correct / Total) x 100
-- **Progress**: (Correct keys / Track length) x 100
-- **Winner**: First to 100% progress
+## Project Structure
 
-## Hackathon Bounty
+```
+src/
+├── app/                 # Pages
+│   ├── page.tsx         # Landing
+│   ├── game/            # Game flow
+│   ├── leaderboard/     # Rankings
+│   ├── feed/            # Social feed
+│   ├── profile/[username]/
+│   └── create-profile/
+├── components/
+│   ├── game/            # GameSetup, KeyDisplay, GameResults, etc.
+│   ├── feed/
+│   └── layout/
+├── lib/
+│   ├── tapestry.ts      # Tapestry API
+│   ├── game-engine.ts   # Core logic
+│   ├── multiplayer.ts   # Supabase rooms
+│   └── escrow.ts        # Deposits, payouts
+├── providers/
+└── store/
+```
 
-This project is submitted for the **Onchain Social** track with **Tapestry Protocol** bounty.
+## Hackathon Submission
 
-### Bounty Requirements Met:
-- **Profile Creation**: Users can create onchain profiles via Tapestry
-- **Social Graph**: Follow/unfollow system with relationship tracking
-- **Content Creation**: Match results and posts recorded as onchain content
-- **Social Engagement**: Leaderboard aggregates onchain data, likes and comments on posts
-- **Real-time Updates**: Fast, optimistic UI updates with `FAST_UNCONFIRMED` execution
-- **Integration Quality**: Full Tapestry API integration throughout the app
+Submitted for the **Solana Hackathon** - Onchain Social track with **Tapestry Protocol** bounty.
 
-### Additional Features:
-- Real-time 1v1 multiplayer via Supabase Realtime
-- Custom profile properties (stats, images)
-- Match history with detailed breakdowns
-- Ranking system based on wins
-- Social feed with Flex WPM and Challenge cards
+**Bounty requirements**: Profile creation, social graph (follow/unfollow), content creation (match results), leaderboard aggregation, FAST_UNCONFIRMED execution.
 
-## Future Enhancements
+**Additional**: Real-time 1v1 multiplayer (Supabase), SOL staking with escrow, match history with full tx details.
 
-- **Matchmaking Queue**: Auto-match with players of similar skill
-- **Tournaments**: Scheduled competitions with prize pools
-- **Spectator Mode**: Watch live races from top players
-- **Custom Challenges**: Create and share custom key sequences
-- **NFT Avatars**: Profile pictures as Solana NFTs
-- **Seasonal Leaderboards**: Reset rankings each season
-- **Mobile Support**: PWA for mobile racing
+## Roadmap
+
+- Mainnet launch
+- Matchmaking queue
+- Tournaments and spectator mode
+- NFT avatars, token rewards, dedicated escrow program
 
 ## License
 
-MIT License - feel free to fork and build upon this!
+MIT
 
 ## Acknowledgments
 
-- **Tapestry Protocol** for the amazing social graph infrastructure
-- **Solana** for fast, cheap onchain interactions
-- **Supabase** for real-time multiplayer infrastructure
-- **Phantom Wallet** for seamless wallet integration
-
----
-
-**Built for the Solana Hackathon**
-*Powered by Tapestry Protocol*
+- Tapestry Protocol for social graph infrastructure
+- Solana Foundation
+- Supabase for real-time multiplayer
