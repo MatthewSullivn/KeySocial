@@ -110,21 +110,6 @@ Match content includes winner/loser IDs, WPM, accuracy, stake amount, and transa
 - **WPM**: (correct characters / 5) / elapsed minutes
 - **Winner**: First player to 100% progress (complete all words)
 
-## Hackathon Submission
-
-Submitted for the **Solana Hackathon** - Onchain Social track with **Tapestry Protocol** bounty.
-
-**Bounty requirements**: Profile creation, social graph (follow/unfollow), content creation (match results), leaderboard aggregation, FAST_UNCONFIRMED execution.
-
-**Additional**: Real-time 1v1 multiplayer (Supabase), SOL staking with escrow, match history with full tx details.
-
-## Roadmap
-
-- Mainnet launch
-- Matchmaking queue
-- Tournaments and spectator mode
-- NFT avatars, token rewards, dedicated escrow program
-
 ## License
 
 MIT
